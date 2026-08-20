@@ -1,5 +1,10 @@
-# Publishes the built app to GitHub Pages so it can be installed on a phone.
-# A PWA will only offer "install" over HTTPS, which Pages provides.
+# Tests and builds the app, then publishes it to GitHub Pages so it can be installed
+# on a phone. A PWA is only offered for installation over HTTPS, which Pages provides.
+#
+# NOTE: Pages must be switched on once by a repo admin, under
+# Settings -> Pages -> Source: "GitHub Actions". The workflow token is not permitted to
+# create a Pages site itself, so until that is done the `deploy` job below fails with
+# "Not Found" while `build` still passes.
 name: Deploy to GitHub Pages
 
 on:
@@ -20,6 +25,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Kept free of any Pages API call, so a green tick here means the code is genuinely
+  # healthy whether or not Pages has been enabled yet.
   build:
     runs-on: ubuntu-latest
     steps:
@@ -29,13 +36,15 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm test
-      - run: npm run build
-      # enablement turns Pages on via the API if it is not already, so no manual
-      # visit to Settings -> Pages is needed.
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Test
+        run: npm test
+      - name: Build
+        run: npm run build
+      # No configure-pages step: Vite is configured with base './', so every asset,
+      # the manifest and the service worker resolve relative to wherever the app is
+      # served from. Nothing needs to know the deployment URL at build time.
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
