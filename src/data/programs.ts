@@ -80,7 +80,7 @@ export const PROGRAMS: Program[] = [
       'For when 5×5 stops going up every session. More volume per muscle, more recovery between heavy days, and accessory work to fill the gaps the big lifts leave. Progression slows down here — that is expected, not a problem.',
     daysPerWeek: 4,
     level: 3,
-    requires: ['barbell', 'dumbbell', 'cable'],
+    requires: ['barbell', 'dumbbell', 'cable', 'machine'],
     graduatesTo: [],
     days: [
       {

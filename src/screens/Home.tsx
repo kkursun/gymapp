@@ -114,6 +114,39 @@ export function Home({ onPromotion }: { onPromotion: () => void }) {
         </button>
       </Card>
 
+      <div className="section-title">
+        <h2 style={{ margin: 0 }}>Your week</h2>
+        <span className="small muted">{program.daysPerWeek} sessions, in order</span>
+      </div>
+      <Card>
+        <p className="small muted">
+          The rotation repeats. Every lift in the program is here — if one is not in your next
+          session, it comes round on the day shown.
+        </p>
+        {program.days.map((d, i) => {
+          const upcoming = d.id === day.id;
+          // How many sessions until this day comes round again.
+          const offset = (i - (state.dayCursor % program.days.length) + program.days.length) % program.days.length;
+          return (
+            <div className="liftrow" key={d.id}>
+              <div className="lift-name">
+                <div style={{ fontWeight: upcoming ? 700 : 500 }}>{d.name}</div>
+                <div className="small muted">
+                  {d.slots.map((slot) => getExercise(slot.exerciseId).name).join(' · ')}
+                </div>
+              </div>
+              {upcoming ? (
+                <Pill tone="accent">next</Pill>
+              ) : (
+                <span className="small muted" style={{ whiteSpace: 'nowrap' }}>
+                  in {offset}
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </Card>
+
       {last && (
         <>
           <div className="section-title">

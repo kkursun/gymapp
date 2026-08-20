@@ -1,7 +1,7 @@
 import { getProgram } from '../data/programs';
 import { getExercise } from '../data/exercises';
 import { applyProgression, buildSets } from '../engine/progression';
-import { buildLiftStates, seedNewLift } from '../engine/starting';
+import { buildLiftStates, seedNewLift, startingWeight } from '../engine/starting';
 import { carryOverWeights } from '../engine/graduation';
 import { snoozeUntil } from '../engine/checkin';
 import type { AppState, LoggedExercise, Profile, Session } from '../types';
@@ -64,7 +64,11 @@ function makeActive(state: AppState): AppState['active'] {
     startedAt: new Date().toISOString(),
     exercises: day.slots.map((slot) => {
       const lift = state.lifts[slot.exerciseId];
-      const weight = lift?.workingWeight ?? 0;
+      // A lift can be missing if an imported backup predates the current program, in
+      // which case fall back to the body-based estimate rather than prescribing 0kg.
+      const weight =
+        lift?.workingWeight ??
+        (state.profile ? startingWeight(state.profile, slot.exerciseId) : 0);
       return {
         exerciseId: slot.exerciseId,
         weight,

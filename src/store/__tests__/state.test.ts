@@ -192,3 +192,21 @@ describe('bodyweight and profile', () => {
     expect(s.sessions).toHaveLength(0);
   });
 });
+
+describe('robustness against an incomplete saved state', () => {
+  it('falls back to the body estimate when a program lift has no saved weight', () => {
+    // Reachable by importing a backup taken before the current program existed.
+    const base = onboarded();
+    const stripped: AppState = {
+      ...base,
+      programId: 'upper-lower',
+      lifts: { squat: base.lifts['squat'] },
+    };
+    const started = reducer(stripped, { type: 'startSession' });
+    for (const ex of started.active!.exercises) {
+      const meta = started.active!.exercises.find((e) => e.exerciseId === ex.exerciseId)!;
+      if (ex.exerciseId === 'hanging-knee-raise' || ex.exerciseId === 'plank') continue;
+      expect(meta.weight, `${ex.exerciseId} was prescribed 0kg`).toBeGreaterThan(0);
+    }
+  });
+});
