@@ -97,10 +97,10 @@ planned for you.
 The app installs from a web page, so it needs to be served over HTTPS first — browsers
 only offer "install" on a secure origin.
 
-**Hosted (what you want):** push to `main` and the included GitHub Actions workflow builds
-and publishes to GitHub Pages. Enable it once under *Settings → Pages → Source: GitHub
-Actions*; the app then lives at `https://<user>.github.io/gymapp/`. Everything in the
-build is path-relative, so the subdirectory is fine.
+**Hosted (what you want):** pushing to the default branch runs the included GitHub Actions
+workflow, which tests, builds, enables Pages if it isn't already, and publishes to
+`https://<user>.github.io/gymapp/`. Everything in the build is path-relative, so the
+subdirectory is fine.
 
 Then, on the phone:
 
