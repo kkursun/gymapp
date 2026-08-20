@@ -92,6 +92,32 @@ planned for you.
   is to your personal novice standard.
 - **Export / import** your data as JSON. It only lives on this device, so take a backup.
 
+## Installing it on your phone
+
+The app installs from a web page, so it needs to be served over HTTPS first — browsers
+only offer "install" on a secure origin.
+
+**Hosted (what you want):** push to `main` and the included GitHub Actions workflow builds
+and publishes to GitHub Pages. Enable it once under *Settings → Pages → Source: GitHub
+Actions*; the app then lives at `https://<user>.github.io/gymapp/`. Everything in the
+build is path-relative, so the subdirectory is fine.
+
+Then, on the phone:
+
+- **iPhone (Safari — it must be Safari):** open the URL, tap Share, then *Add to Home
+  Screen*.
+- **Android (Chrome):** open the URL and either accept the install banner or use the ⋮
+  menu → *Install app* / *Add to Home screen*.
+
+It then launches full-screen with no browser chrome, and works with no signal.
+
+**Local testing without hosting:** `npm run build && npm run preview -- --host` and open
+the printed LAN address on your phone. The app runs, but plain-HTTP origins can't be
+installed — for that you need the HTTPS URL above.
+
+Your data lives in that browser's storage. It does not follow you between the installed
+app and the browser tab, or to another phone — use *Settings → Export* to move it.
+
 ## Development
 
 ```bash
