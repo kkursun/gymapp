@@ -1,6 +1,13 @@
 import type { Program } from '../types';
 
 const s = (sets: number, reps: number) => ({ sets, reps });
+/** Double progression: work up from `reps` to `maxReps`, then add weight and reset. */
+const range = (sets: number, reps: number, maxReps: number, repStep = 1) => ({
+  sets,
+  reps,
+  maxReps,
+  repStep,
+});
 
 /**
  * Three programs, each runnable in an ordinary commercial gym. The lifter is placed on
@@ -23,20 +30,20 @@ export const PROGRAMS: Program[] = [
         id: 'A',
         name: 'Day A',
         slots: [
-          { exerciseId: 'goblet-squat', scheme: s(3, 10) },
-          { exerciseId: 'db-bench', scheme: s(3, 10) },
-          { exerciseId: 'seated-row', scheme: s(3, 10) },
-          { exerciseId: 'plank', scheme: s(3, 30) },
+          { exerciseId: 'goblet-squat', scheme: range(3, 8, 12) },
+          { exerciseId: 'db-bench', scheme: range(3, 8, 12) },
+          { exerciseId: 'seated-row', scheme: range(3, 8, 12) },
+          { exerciseId: 'plank', scheme: range(3, 20, 60, 5) },
         ],
       },
       {
         id: 'B',
         name: 'Day B',
         slots: [
-          { exerciseId: 'leg-press', scheme: s(3, 10) },
-          { exerciseId: 'db-shoulder-press', scheme: s(3, 10) },
-          { exerciseId: 'lat-pulldown', scheme: s(3, 10) },
-          { exerciseId: 'leg-curl', scheme: s(3, 12) },
+          { exerciseId: 'leg-press', scheme: range(3, 8, 12) },
+          { exerciseId: 'db-shoulder-press', scheme: range(3, 8, 12) },
+          { exerciseId: 'lat-pulldown', scheme: range(3, 8, 12) },
+          { exerciseId: 'leg-curl', scheme: range(3, 10, 15) },
         ],
       },
     ],
@@ -81,16 +88,16 @@ export const PROGRAMS: Program[] = [
     daysPerWeek: 4,
     level: 3,
     requires: ['barbell', 'dumbbell', 'cable', 'machine'],
-    graduatesTo: [],
+    graduatesTo: ['momentum'],
     days: [
       {
         id: 'L1',
         name: 'Lower A',
         slots: [
           { exerciseId: 'squat', scheme: s(4, 5) },
-          { exerciseId: 'romanian-deadlift', scheme: s(3, 8) },
-          { exerciseId: 'leg-curl', scheme: s(3, 12) },
-          { exerciseId: 'hanging-knee-raise', scheme: s(3, 10) },
+          { exerciseId: 'romanian-deadlift', scheme: range(3, 6, 10) },
+          { exerciseId: 'leg-curl', scheme: range(3, 10, 15) },
+          { exerciseId: 'hanging-knee-raise', scheme: range(3, 6, 15) },
         ],
       },
       {
@@ -99,8 +106,8 @@ export const PROGRAMS: Program[] = [
         slots: [
           { exerciseId: 'bench', scheme: s(4, 5) },
           { exerciseId: 'row', scheme: s(4, 6) },
-          { exerciseId: 'db-shoulder-press', scheme: s(3, 10) },
-          { exerciseId: 'face-pull', scheme: s(3, 15) },
+          { exerciseId: 'db-shoulder-press', scheme: range(3, 8, 12) },
+          { exerciseId: 'face-pull', scheme: range(3, 12, 20) },
         ],
       },
       {
@@ -108,9 +115,9 @@ export const PROGRAMS: Program[] = [
         name: 'Lower B',
         slots: [
           { exerciseId: 'deadlift', scheme: s(3, 5) },
-          { exerciseId: 'leg-press', scheme: s(3, 10) },
-          { exerciseId: 'goblet-squat', scheme: s(3, 12) },
-          { exerciseId: 'plank', scheme: s(3, 45) },
+          { exerciseId: 'leg-press', scheme: range(3, 8, 12) },
+          { exerciseId: 'goblet-squat', scheme: range(3, 10, 15) },
+          { exerciseId: 'plank', scheme: range(3, 30, 90, 5) },
         ],
       },
       {
@@ -119,9 +126,63 @@ export const PROGRAMS: Program[] = [
         slots: [
           { exerciseId: 'ohp', scheme: s(4, 5) },
           { exerciseId: 'lat-pulldown', scheme: s(4, 8) },
-          { exerciseId: 'incline-db-press', scheme: s(3, 10) },
-          { exerciseId: 'db-curl', scheme: s(3, 12) },
-          { exerciseId: 'triceps-pushdown', scheme: s(3, 12) },
+          { exerciseId: 'incline-db-press', scheme: range(3, 8, 12) },
+          { exerciseId: 'db-curl', scheme: range(3, 10, 15) },
+          { exerciseId: 'triceps-pushdown', scheme: range(3, 10, 15) },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'momentum',
+    name: 'Momentum',
+    tagline: 'Barbell + accessories · 4 days a week',
+    description:
+      'Where you go once adding weight every session has stopped working for good. Every lift now runs on a rep range: you work up from the bottom of the range to the top at one weight, then add weight and start again. Progress is slower per session and it does not run out — this is how people train for years rather than months.',
+    daysPerWeek: 4,
+    level: 3,
+    requires: ['barbell', 'dumbbell', 'cable', 'machine'],
+    graduatesTo: [],
+    days: [
+      {
+        id: 'L1',
+        name: 'Lower A',
+        slots: [
+          { exerciseId: 'squat', scheme: range(4, 4, 6) },
+          { exerciseId: 'romanian-deadlift', scheme: range(3, 6, 10) },
+          { exerciseId: 'leg-press', scheme: range(3, 8, 12) },
+          { exerciseId: 'hanging-knee-raise', scheme: range(3, 6, 15) },
+        ],
+      },
+      {
+        id: 'U1',
+        name: 'Upper A',
+        slots: [
+          { exerciseId: 'bench', scheme: range(4, 4, 6) },
+          { exerciseId: 'row', scheme: range(4, 6, 10) },
+          { exerciseId: 'db-shoulder-press', scheme: range(3, 8, 12) },
+          { exerciseId: 'face-pull', scheme: range(3, 12, 20) },
+        ],
+      },
+      {
+        id: 'L2',
+        name: 'Lower B',
+        slots: [
+          { exerciseId: 'deadlift', scheme: range(3, 3, 5) },
+          { exerciseId: 'goblet-squat', scheme: range(3, 10, 15) },
+          { exerciseId: 'leg-curl', scheme: range(3, 10, 15) },
+          { exerciseId: 'plank', scheme: range(3, 30, 90, 5) },
+        ],
+      },
+      {
+        id: 'U2',
+        name: 'Upper B',
+        slots: [
+          { exerciseId: 'ohp', scheme: range(4, 4, 6) },
+          { exerciseId: 'lat-pulldown', scheme: range(4, 8, 12) },
+          { exerciseId: 'incline-db-press', scheme: range(3, 8, 12) },
+          { exerciseId: 'db-curl', scheme: range(3, 10, 15) },
+          { exerciseId: 'triceps-pushdown', scheme: range(3, 10, 15) },
         ],
       },
     ],

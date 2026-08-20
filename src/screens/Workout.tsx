@@ -98,7 +98,7 @@ export function Workout({ onDone }: { onDone: () => void }) {
                 <div>
                   <div className="exercise-name">{meta.name}</div>
                   <div className="exercise-target num">
-                    {slot.scheme.sets} × {slot.scheme.reps}
+                    {slot.scheme.sets} × {ex.sets[0]?.targetReps ?? slot.scheme.reps}
                     {isTime ? ' sec' : ''}
                     {meta.loadType !== 'bodyweight' ? ` @ ${fmt(ex.weight)}kg` : ''}
                     {meta.equipment === 'dumbbell' ? ' each' : ''}
@@ -289,6 +289,7 @@ function SessionSummary({
 }) {
   const { state, dispatch } = useStore();
   const active = state.active!;
+  const day = getProgram(active.programId).days.find((d) => d.id === active.dayId)!;
 
   // Preview exactly what finishing will do to each lift, using the same engine.
   const preview = active.exercises.map((ex) => {
@@ -298,7 +299,9 @@ function SessionSummary({
     if (ex.outcome === 'skipped' || performed.length === 0 || !lift) {
       return { name: meta.name, message: 'Not logged — no change.', tone: undefined as 'good' | 'warn' | undefined };
     }
-    const result = applyProgression({ ...lift, workingWeight: ex.weight }, performed);
+    const scheme = day.slots.find((s) => s.exerciseId === ex.exerciseId)?.scheme;
+    if (!scheme) return { name: meta.name, message: 'Logged.', tone: undefined as 'good' | 'warn' | undefined };
+    const result = applyProgression({ ...lift, workingWeight: ex.weight }, performed, scheme);
     return {
       name: meta.name,
       message: result.message,

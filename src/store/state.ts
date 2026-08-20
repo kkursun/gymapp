@@ -72,7 +72,7 @@ function makeActive(state: AppState): AppState['active'] {
       return {
         exerciseId: slot.exerciseId,
         weight,
-        sets: buildSets(slot.scheme, weight),
+        sets: buildSets(slot.scheme, weight, lift?.workingReps),
         outcome: 'held' as const,
         nextWeight: weight,
       };
@@ -155,15 +155,19 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'finishSession': {
       if (!state.active || !state.profile) return state;
       const lifts = { ...state.lifts };
+      const activeDay = getProgram(state.active.programId).days.find(
+        (d) => d.id === state.active!.dayId,
+      );
       const logged: LoggedExercise[] = state.active.exercises.map((ex) => {
         if (ex.outcome === 'skipped') return ex;
         const lift = lifts[ex.exerciseId];
-        if (!lift) return ex;
+        const scheme = activeDay?.slots.find((s) => s.exerciseId === ex.exerciseId)?.scheme;
+        if (!lift || !scheme) return ex;
         // Only sets the lifter actually touched count toward the verdict.
         const performed = ex.sets.filter((s) => s.completed);
         if (performed.length === 0) return { ...ex, outcome: 'skipped' as const };
         // The lifter may have overridden the weight in the gym; judge what was lifted.
-        const result = applyProgression({ ...lift, workingWeight: ex.weight }, performed);
+        const result = applyProgression({ ...lift, workingWeight: ex.weight }, performed, scheme);
         lifts[ex.exerciseId] = result.next;
         return { ...ex, sets: performed, outcome: result.outcome, nextWeight: result.nextWeight };
       });

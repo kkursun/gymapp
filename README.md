@@ -91,6 +91,7 @@ measurements update your lean-mass estimate, which moves every strength target w
 | **Foundation** | Machines + dumbbells | 3 | The first 6–10 weeks, or any gym without a rack |
 | **Strength 5×5** | Barbell | 3 | The main event — where most of your first year of strength comes from |
 | **Upper / Lower** | Barbell + accessories | 4 | Once 5×5 stops going up every session |
+| **Momentum** | Barbell + accessories | 4 | Once linear progression is finished for good — everything on rep ranges |
 
 All three are runnable in an ordinary commercial gym.
 
@@ -112,10 +113,22 @@ not a decision made behind your back: Upper/Lower is one button away.
 - **5×5 → Upper/Lower**: whichever comes first — three deloads across your main lifts
   (linear progression is genuinely finished), 60 sessions, or your squat, bench and
   deadlift all clearing the novice standard for your size.
+- **Upper/Lower → Momentum**: four deloads across the main lifts, or 100 sessions. At that
+  point extra recovery has stopped rescuing linear progression, and the answer is rep
+  ranges rather than more weight.
+
+Momentum is the last program, and unlike the others that is not a ceiling: double
+progression keeps generating new targets indefinitely, so there is nothing further to
+graduate to.
 
 You can always decline and stay put, or override the program entirely in Settings.
 
 ## Progression rules
+
+Two models, chosen by the program rather than by you.
+
+**Linear** — a fixed rep target, used for the main barbell lifts in the beginner programs.
+Fast while it lasts, which for a novice is months.
 
 | Situation | What happens |
 | --- | --- |
@@ -124,6 +137,18 @@ You can always decline and stay put, or override the program entirely in Setting
 | Third consecutive miss | Deload to 90%, rounded to the plates you have |
 | Already at the lightest the lift goes | Hold — no pointless deload of an empty bar |
 | Exercise skipped or untouched | Nothing changes; it isn't counted as a failure |
+
+**Double progression** — a rep *range* (say 3×8–12), used for all accessory work, every
+bodyweight movement, and every lift in Momentum. Reps climb before weight does, so the
+lift keeps advancing long after adding plates every session has stopped working.
+
+| Situation | What happens |
+| --- | --- |
+| All reps at the current target | +1 rep next session, same weight (planks move in 5s) |
+| Reached the top of the range | Weight goes up, reps reset to the bottom |
+| Third consecutive miss | Rep target resets to the bottom — the weight is left alone |
+| Missed at the bottom of the range | Falls back to a normal 10% weight deload |
+| Bodyweight lift at the top of its range | Holds, and tells you to move to a harder variation |
 
 Override the weight in the gym and the app judges what you actually lifted, not what it
 planned for you.

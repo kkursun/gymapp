@@ -26,7 +26,17 @@ export interface Exercise {
 
 export interface SetScheme {
   sets: number;
+  /** Reps to start at. With `maxReps` set, this is the bottom of the range. */
   reps: number;
+  /**
+   * Top of the rep range. Its presence switches the lift to double progression: reps
+   * climb from `reps` to `maxReps` at a fixed weight, then the weight goes up and the
+   * reps drop back to the bottom. This is what keeps a lift progressing once adding
+   * weight every session has stopped working.
+   */
+  maxReps?: number;
+  /** Reps added per successful session. Planks count seconds, so they move in fives. */
+  repStep?: number;
   /** Fraction of the working weight, for warm-up-style back-off sets. */
   loadFactor?: number;
 }
@@ -82,6 +92,13 @@ export interface LiftState {
   bestEstimated1RM: number;
   /** Weight the lifter stalled out at before the most recent deload. */
   lastStallWeight?: number;
+  /**
+   * Current rep target for a double-progression lift. Absent means the lift has not
+   * moved off the bottom of its range yet, or does not use rep ranges at all.
+   */
+  workingReps?: number;
+  /** Best rep count reached at the top of the range, for bodyweight movements. */
+  bestReps?: number;
 }
 
 export interface LoggedSet {

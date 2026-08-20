@@ -96,6 +96,21 @@ export function checkPromotion(state: AppState): Promotion | null {
     }
   }
 
+  if (from.id === 'upper-lower') {
+    // Linear progression on the main lifts is finished when even the extra recovery of a
+    // 4-day split has stopped rescuing it. Rep ranges are the answer, not more weight.
+    if (deloads >= 4 && sessions >= 40) {
+      ready = true;
+      urgent = true;
+      reasons.push(`Your main lifts have now been deloaded ${deloads} times across two programs — adding weight session to session has genuinely run out, which happens to everyone eventually.`);
+      reasons.push('Momentum runs every lift on a rep range instead: you add reps first and weight only once you reach the top. It is slower per session and it does not stop working.');
+    } else if (sessions >= 100) {
+      ready = true;
+      reasons.push(`${sessions} sessions on Upper/Lower — you are well past what a linear program was built to deliver.`);
+      reasons.push('Moving to rep ranges gives you a progression that keeps going for years rather than months.');
+    }
+  }
+
   if (!ready) return null;
 
   const key = `${from.id}->${to.id}`;

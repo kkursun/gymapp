@@ -136,3 +136,32 @@ describe('standard progress copy', () => {
     expect(describeStandardProgress(0.62)).toBe('62% of novice standard');
   });
 });
+
+describe('graduation from Upper/Lower', () => {
+  it('is no longer a dead end', () => {
+    const s = stateOn('upper-lower', 50);
+    for (const id of ['squat', 'bench', 'deadlift', 'ohp']) {
+      s.lifts[id] = { ...s.lifts[id], deloads: 1 };
+    }
+    const p = checkPromotion(s);
+    expect(p?.to.id).toBe('momentum');
+    expect(p?.urgent).toBe(true);
+    expect(p?.reasons.join(' ')).toMatch(/rep range/i);
+  });
+
+  it('promotes on time served as well', () => {
+    expect(checkPromotion(stateOn('upper-lower', 105))?.to.id).toBe('momentum');
+  });
+
+  it('does not promote a lifter who has barely started the program', () => {
+    expect(checkPromotion(stateOn('upper-lower', 12))).toBeNull();
+  });
+
+  it('leaves Momentum itself terminal, because rep ranges do not run out', () => {
+    const s = stateOn('momentum', 200);
+    for (const id of ['squat', 'bench', 'deadlift']) {
+      s.lifts[id] = { ...s.lifts[id], deloads: 9 };
+    }
+    expect(checkPromotion(s)).toBeNull();
+  });
+});

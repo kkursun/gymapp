@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { getExercise } from '../data/exercises';
 import { getProgram } from '../data/programs';
 import { checkPromotion } from '../engine/graduation';
-import { fmt } from '../engine/progression';
+import { describeReps, fmt } from '../engine/progression';
 import { platesFor, groupPlates } from '../engine/plates';
 import { currentDay } from '../store/state';
 import { useStore } from '../store/StoreContext';
@@ -79,7 +79,7 @@ export function Home({ onPromotion }: { onPromotion: () => void }) {
               <div className="lift-name">
                 <div>{ex.name}</div>
                 <div className="small muted num">
-                  {slot.scheme.sets} × {slot.scheme.reps}
+                  {slot.scheme.sets} × {describeReps(slot.scheme, lift?.workingReps)}
                   {ex.loadType === 'bodyweight' ? (slot.exerciseId === 'plank' ? ' sec' : ' reps') : ''}
                   {load && load.perSide.length > 0
                     ? ` · ${groupPlates(load.perSide)
