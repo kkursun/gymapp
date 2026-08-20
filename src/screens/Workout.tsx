@@ -48,17 +48,21 @@ export function Workout({ onDone }: { onDone: () => void }) {
     (ex) => ex.outcome === 'skipped' || ex.sets.every((s) => s.completed),
   );
 
+  /** Heavy compounds need longer between sets than curls do. */
+  const startRest = (exerciseId: string) => {
+    const meta = getExercise(exerciseId);
+    const seconds =
+      meta.loadType === 'accessory' || meta.loadType === 'bodyweight'
+        ? state.settings.restSecAccessory
+        : state.settings.restSecMain;
+    setRest({ seconds, key: Date.now() });
+  };
+
   const tapSet = (exIndex: number, setIndex: number) => {
     const set = active.exercises[exIndex].sets[setIndex];
     dispatch({ type: 'toggleSet', exerciseIndex: exIndex, setIndex });
-    if (!set.completed) {
-      const meta = getExercise(active.exercises[exIndex].exerciseId);
-      const seconds =
-        meta.loadType === 'accessory' || meta.loadType === 'bodyweight'
-          ? state.settings.restSecAccessory
-          : state.settings.restSecMain;
-      setRest({ seconds, key: Date.now() });
-    }
+    // Un-ticking a set is a correction, not a set just finished — no rest for that.
+    if (!set.completed) startRest(active.exercises[exIndex].exerciseId);
   };
 
   const mm = Math.floor(elapsed / 60);
@@ -223,6 +227,7 @@ export function Workout({ onDone }: { onDone: () => void }) {
         <RepEditor
           exerciseIndex={editing.ex}
           setIndex={editing.set}
+          onLogged={startRest}
           onClose={() => setEditing(null)}
         />
       )}
@@ -235,10 +240,12 @@ export function Workout({ onDone }: { onDone: () => void }) {
 function RepEditor({
   exerciseIndex,
   setIndex,
+  onLogged,
   onClose,
 }: {
   exerciseIndex: number;
   setIndex: number;
+  onLogged: (exerciseId: string) => void;
   onClose: () => void;
 }) {
   const { state, dispatch } = useStore();
@@ -264,6 +271,8 @@ function RepEditor({
             className={`setbtn${n === set.reps && set.completed ? ' setbtn--active' : ''}`}
             onClick={() => {
               dispatch({ type: 'setReps', exerciseIndex, setIndex, reps: n });
+              // Logging a short set still finishes a set, so it still starts the rest.
+              onLogged(ex.exerciseId);
               onClose();
             }}
           >
