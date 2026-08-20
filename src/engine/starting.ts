@@ -103,6 +103,15 @@ export interface ProgramRecommendation {
   program: Program;
   reasons: string[];
   alternatives: Program[];
+  /** Set when the recommended program's schedule differs from the days the lifter asked for. */
+  frequencyNote?: string;
+  /** A program that does match the requested days, offered alongside the note. */
+  frequencyMatch?: Program;
+}
+
+/** Whether this lifter can actually run a program with the equipment they have. */
+function isRunnable(program: Program, profile: Profile): boolean {
+  return !program.requires.includes('barbell') || profile.hasRack;
 }
 
 /**
@@ -141,14 +150,49 @@ export function recommendProgram(profile: Profile): ProgramRecommendation {
     reasons.push('Four days a week and prior training means you can handle the extra volume of an Upper/Lower split.');
   }
 
-  if (profile.daysPerWeek <= 2) {
-    reasons.push(`You picked ${profile.daysPerWeek} days a week — the program still works, each session just comes round slower.`);
+  const program = getProgram(id);
+
+  // Never silently ignore the days the lifter said they had. If the recommendation runs on
+  // a different schedule, say so, say why, and put a matching program within one tap.
+  let frequencyNote: string | undefined;
+  let frequencyMatch: Program | undefined;
+
+  if (program.daysPerWeek !== profile.daysPerWeek) {
+    frequencyMatch = PROGRAMS.find(
+      (p) => p.id !== program.id && p.daysPerWeek === profile.daysPerWeek && isRunnable(p, profile),
+    );
+
+    if (profile.daysPerWeek > program.daysPerWeek) {
+      frequencyNote =
+        `You said you can train ${profile.daysPerWeek} days a week and ${program.name} runs ${program.daysPerWeek}. ` +
+        'That is deliberate rather than an oversight: it works your whole body every session and adds weight ' +
+        'every time, and a beginner recovers from three of those a week, not four. The spare day is better ' +
+        'spent walking, sleeping and eating.';
+      if (frequencyMatch) {
+        frequencyNote += ` If you would rather use all ${profile.daysPerWeek}, ${frequencyMatch.name} is built for exactly that — it splits the work so no single session needs as much recovery.`;
+      }
+    } else {
+      frequencyNote =
+        `${program.name} is written as a ${program.daysPerWeek}-day week and you picked ${profile.daysPerWeek}. ` +
+        'Nothing breaks — the app just rotates through the sessions in order, so each one comes round slower ' +
+        'and progress is steadier rather than faster.';
+      if (frequencyMatch) {
+        frequencyNote += ` ${frequencyMatch.name} fits ${profile.daysPerWeek} days exactly, if you would rather stay on schedule.`;
+      }
+    }
   }
 
   return {
-    program: getProgram(id),
+    program,
     reasons,
-    alternatives: PROGRAMS.filter((p) => p.id !== id),
+    // Surface a program matching the requested days first — it is the one they are most
+    // likely to want after reading the note.
+    alternatives: PROGRAMS.filter((p) => p.id !== id).sort(
+      (a, b) =>
+        Math.abs(a.daysPerWeek - profile.daysPerWeek) - Math.abs(b.daysPerWeek - profile.daysPerWeek),
+    ),
+    frequencyNote,
+    frequencyMatch,
   };
 }
 

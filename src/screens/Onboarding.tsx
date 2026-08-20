@@ -225,6 +225,24 @@ export function Onboarding() {
             </Card>
           )}
 
+          {program.id === recommendation.program.id && recommendation.frequencyNote && (
+            <Card>
+              <div className="row" style={{ marginBottom: 6 }}>
+                <h3 style={{ margin: 0 }}>About your {daysPerWeek} days</h3>
+                <Pill tone="warn">{program.daysPerWeek}-day program</Pill>
+              </div>
+              <p className="small muted">{recommendation.frequencyNote}</p>
+              {recommendation.frequencyMatch && (
+                <button
+                  className="btn btn--block"
+                  onClick={() => setChosenProgram(recommendation.frequencyMatch!.id)}
+                >
+                  Use {recommendation.frequencyMatch.name} instead ({daysPerWeek} days)
+                </button>
+              )}
+            </Card>
+          )}
+
           <Card>
             <h3>Your starting weights</h3>
             <p className="small muted">
@@ -257,7 +275,10 @@ export function Onboarding() {
             <div className="stack" style={{ marginTop: 14 }}>
               {[recommendation.program, ...recommendation.alternatives].map((p) => (
                 <button key={p.id} className="choice" aria-pressed={p.id === programId} onClick={() => setChosenProgram(p.id)}>
-                  <div className="choice-title">{p.name}</div>
+                  <div className="choice-title">
+                    {p.name}
+                    {p.daysPerWeek === daysPerWeek ? ' · matches your days' : ''}
+                  </div>
                   <div className="choice-sub">{p.tagline}</div>
                 </button>
               ))}

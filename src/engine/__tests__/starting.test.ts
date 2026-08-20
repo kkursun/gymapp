@@ -161,3 +161,45 @@ describe('seeding a lift the lifter has never done', () => {
     expect(strengthRatio({}, p)).toBe(0);
   });
 });
+
+describe('honouring the requested training days', () => {
+  it('explains itself when the recommendation runs fewer days than requested', () => {
+    const rec = recommendProgram(profile({ daysPerWeek: 4, experience: 'never' }));
+    // A novice is still best served by 3 full-body days...
+    expect(rec.program.id).toBe('strength-5x5');
+    expect(rec.program.daysPerWeek).toBe(3);
+    // ...but the answer they gave must not be silently discarded.
+    expect(rec.frequencyNote).toBeDefined();
+    expect(rec.frequencyNote).toContain('4 days a week');
+    expect(rec.frequencyMatch?.id).toBe('upper-lower');
+  });
+
+  it('says nothing about frequency when the program already matches', () => {
+    const rec = recommendProgram(profile({ daysPerWeek: 3 }));
+    expect(rec.program.daysPerWeek).toBe(3);
+    expect(rec.frequencyNote).toBeUndefined();
+    expect(rec.frequencyMatch).toBeUndefined();
+  });
+
+  it('explains the other direction too, when the program runs more days than requested', () => {
+    const rec = recommendProgram(profile({ daysPerWeek: 3, experience: 'returning' }));
+    expect(rec.program.id).toBe('strength-5x5');
+    expect(rec.frequencyNote).toBeUndefined();
+
+    // A returning lifter on 4 days gets Upper/Lower; force the mismatch the other way.
+    const slower = recommendProgram(profile({ daysPerWeek: 2, experience: 'returning' }));
+    expect(slower.frequencyNote).toContain('comes round slower');
+  });
+
+  it('never offers a barbell program as the frequency match without a rack', () => {
+    const rec = recommendProgram(profile({ daysPerWeek: 4, hasRack: false }));
+    expect(rec.program.id).toBe('foundation');
+    // Upper/Lower needs a barbell, so it must not be the suggested 4-day alternative.
+    expect(rec.frequencyMatch).toBeUndefined();
+  });
+
+  it('lists a program matching the requested days first among the alternatives', () => {
+    const rec = recommendProgram(profile({ daysPerWeek: 4, experience: 'never' }));
+    expect(rec.alternatives[0].daysPerWeek).toBe(4);
+  });
+});

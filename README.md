@@ -58,6 +58,17 @@ measurements update your lean-mass estimate, which moves every strength target w
 
 All three are runnable in an ordinary commercial gym.
 
+### Training days
+
+The days-per-week answer is never silently overridden. If the recommended program runs on
+a different schedule than you asked for, onboarding says so, explains why, and offers a
+program that matches your days in one tap.
+
+A beginner who picks 4 days is still *recommended* 3-day 5×5 — full-body sessions that add
+weight every time are about as much as a novice recovers from, and the fourth day buys
+less than sleeping and eating does. But that is a recommendation with its reasoning shown,
+not a decision made behind your back: Upper/Lower is one button away.
+
 ### How you get promoted
 
 - **Foundation → 5×5**: ~18 sessions or 6 weeks in, once you're using real weight on the
