@@ -146,6 +146,44 @@ export function Settings() {
         </div>
       </Card>
 
+      <div className="section-title"><h2 style={{ margin: 0 }}>How your targets are set</h2></div>
+      <Card>
+        <p className="small muted">
+          Your strength targets are not a generic chart — they are computed from your body and age.
+        </p>
+        <details>
+          <summary style={{ fontWeight: 650, cursor: 'pointer', fontSize: 14.5 }}>Show the derivation</summary>
+          <ul className="notelist" style={{ marginTop: 12 }}>
+            <li>
+              <strong>Level.</strong> Novice one-rep-max standards as a multiple of bodyweight, from
+              aggregate lifting-standards tables — squat 1.25×, bench 0.75×, deadlift 1.5×, press 0.55×
+              for a 90kg man. "Novice" means three to six months of consistent training.
+            </li>
+            <li>
+              <strong>Size.</strong> Strength tracks muscle cross-section, which scales as mass to the
+              two-thirds power — the same law behind the Wilks and DOTS formulas. Applied to your
+              estimated lean mass, so your height counts rather than the scale alone.
+            </li>
+            <li>
+              <strong>Age.</strong> The Foster (under 24) and McCulloch (40+) age-grading coefficients
+              used in masters powerlifting, inverted. Ages 24–39 are peak, with no adjustment.
+            </li>
+            <li>
+              <strong>Sex.</strong> Published tables put women at about 75–85% of men on lower-body
+              lifts and 60–70% on upper body. Lean mass explains part of that; the rest is applied on top.
+            </li>
+            <li>
+              Lifts without a published standard — rows, machines, dumbbell work — are estimated as a
+              share of a lift that has one. Those fractions are our judgement, not published figures.
+            </li>
+          </ul>
+          <p className="small muted" style={{ marginTop: 10 }}>
+            These are population averages, and none of it knows about your injuries, sleep or how a set
+            actually felt. Every weight has ± buttons for exactly that reason.
+          </p>
+        </details>
+      </Card>
+
       <div className="section-title"><h2 style={{ margin: 0 }}>Your data</h2></div>
       <Card>
         <p className="small muted">

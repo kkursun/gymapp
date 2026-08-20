@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { getExercise } from '../data/exercises';
-import { buildNotes, recommendProgram, startingWeight, targetFiveRepMax } from '../engine/starting';
+import { buildNotes, isLoaded, recommendProgram, startingWeight, targetFiveRepMax } from '../engine/starting';
 import { readBody } from '../engine/body';
 import { fmt } from '../engine/progression';
 import { useStore } from '../store/StoreContext';
@@ -47,7 +47,7 @@ export function Onboarding() {
     const ids = new Set(program.days.flatMap((d) => d.slots.map((s) => s.exerciseId)));
     return [...ids]
       .map((id) => ({ ex: getExercise(id), start: startingWeight(profile, id), target: targetFiveRepMax(profile, id) }))
-      .filter((l) => l.ex.lbmRatio > 0)
+      .filter((l) => isLoaded(l.ex.id))
       .sort((a, b) => b.target - a.target);
   }, [program, profile]);
 

@@ -20,26 +20,62 @@ answers both and keeps answering them as you get stronger:
 3. **When a program runs out of road**, the app notices and offers you the next one,
    carrying your weights across.
 
-## Why height and weight, not just weight
+## How the numbers are derived
 
-Starting weights are derived from **lean body mass** (Boer formula), not bodyweight. Two
-people who both weigh 90kg but stand 165cm and 190cm carry very different amounts of
-muscle, and the taller one is meaningfully stronger. Bodyweight alone can't see that.
+Starting weights are not a generic chart. Each lift's target is computed from four terms,
+three of which come from published sources rather than from us:
 
 ```
-lean mass  →  × exercise's novice-standard ratio
-           →  × age factor          (peaks in your 20s, tapers slowly after 30)
-           →  × experience factor   (how close to that standard you start)
-           →  rounded down to a weight the plates can actually make
+novice 1RM  =  published novice ratio × 90kg      (level)
+            ×  (your lean mass / reference)^(2/3)  (size)
+            ×  sex factor                          (sex)
+            ×  age factor                          (age)
 ```
 
-Everyone starts well below their own standard on purpose — the first weeks are for
-learning the movement, and starting light is what buys you months of easy progress
-instead of two weeks of it.
+**Level** — novice one-rep-max standards as a multiple of bodyweight, from aggregate
+lifting-standards tables: squat 1.25×, bench 0.75×, deadlift 1.5×, overhead press 0.55×
+for a 90kg man. "Novice" means roughly three to six months of consistent training, which
+is what a beginner program is built to deliver.
 
-BMI and age also feed **program selection**: a complete beginner who is 50+, or carrying
-enough weight that loaded spinal work is unpleasant on day one, starts on machines and
-dumbbells instead of under a barbell.
+**Size** — strength tracks muscle cross-sectional area, which scales as mass^(2/3), not
+mass. This is the allometric law underlying the Wilks, DOTS and Sinclair formulas. It is
+applied to **lean** mass (Boer formula), which is why height is asked for: two people at
+90kg but 25cm apart carry very different amounts of muscle.
+
+Lean mass rather than bodyweight is a deliberate choice. The empirical curves fitted to
+competition bodyweight show an exponent well below 2/3 (DOTS implies ≈0.4–0.55), because
+heavier competitors carry proportionally more fat. Once fat is removed, the geometric 2/3
+exponent is the correct one — applying the empirical curve *as well* would count the same
+correction twice. A test cross-checks our curve against the DOTS polynomial and requires
+agreement within 20% across 60–120kg.
+
+**Age** — the Foster (ages 14–23) and McCulloch (40+) age-grading coefficients used in
+masters powerlifting, inverted: those tables exist to scale an older lifter's total *up*
+to a peak-age equivalent, so their reciprocal is the fraction of peak strength expected at
+that age. Ages 24–39 are peak, with no adjustment. This replaced a linear taper we had
+invented, which was roughly right at 50 and badly wrong at 70 (0.76 vs the correct 0.61).
+
+**Sex** — published tables put women at about 75–85% of men on lower-body lifts and 60–70%
+on upper body at the same bodyweight. Lean mass explains a few points of that on its own,
+so the residual is applied on top and tests assert the combined result lands inside the
+published bands.
+
+### What is ours rather than published
+
+Being clear about this, because it matters:
+
+- Only squat, bench, deadlift and overhead press have published ratios. **Every other
+  lift** — rows, pulldowns, machines, dumbbell work — is estimated as a fraction of one
+  that does, and those fractions are our judgement. The distinction is encoded in the
+  data itself (`{ kind: 'published' }` vs `{ kind: 'estimated' }`), not buried in a
+  comment.
+- The experience factors (how far below the standard you start) and the graduation
+  thresholds are chosen because they behave sensibly, not derived from data.
+- The standards tables themselves are aggregated from self-reported lifting-app data, not
+  a controlled study. They are good population averages and nothing more.
+
+None of this is medically validated, and none of it knows about your injuries, sleep, or
+how a set actually felt. Every weight has ± buttons for that reason.
 
 ## Keeping it current
 

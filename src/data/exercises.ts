@@ -1,11 +1,13 @@
 import type { Exercise } from '../types';
 
 /**
- * `lbmRatio` is the 5-rep max a *novice* lifter is expected to reach, expressed as a
- * multiple of lean body mass rather than bodyweight — two people at 90kg but 15cm apart
- * in height carry very different amounts of muscle, and the taller one is stronger.
- * These are targets, not starting points: the onboarding engine starts the lifter at a
- * fraction of this so there is room to learn the movement.
+ * Each lift declares where its novice standard comes from. `published` means the lift has
+ * a bodyweight ratio taken from aggregate lifting-standards tables; `estimated` means we
+ * have no published figure and express it as a share of a lift that does, which is a
+ * judgement call and labelled as one. See engine/standards.ts for the full derivation.
+ *
+ * These are targets, not starting points: onboarding starts the lifter at a fraction of
+ * the standard so there is room to learn the movement.
  */
 const list: Exercise[] = [
   {
@@ -14,7 +16,7 @@ const list: Exercise[] = [
     loadType: 'lower',
     equipment: 'barbell',
     primary: 'legs',
-    lbmRatio: 1.35,
+    standard: { kind: 'published', lift: 'squat' },
     increment: 2.5,
     minLoad: 20,
     cues: [
@@ -33,7 +35,7 @@ const list: Exercise[] = [
     loadType: 'upper',
     equipment: 'barbell',
     primary: 'chest',
-    lbmRatio: 1.0,
+    standard: { kind: 'published', lift: 'bench' },
     increment: 2.5,
     minLoad: 20,
     cues: [
@@ -48,7 +50,7 @@ const list: Exercise[] = [
     loadType: 'upper',
     equipment: 'barbell',
     primary: 'back',
-    lbmRatio: 0.9,
+    standard: { kind: 'estimated', of: 'bench', fraction: 0.8 },
     increment: 2.5,
     minLoad: 20,
     cues: [
@@ -63,7 +65,7 @@ const list: Exercise[] = [
     loadType: 'upper',
     equipment: 'barbell',
     primary: 'shoulders',
-    lbmRatio: 0.68,
+    standard: { kind: 'published', lift: 'ohp' },
     increment: 2.5,
     minLoad: 20,
     cues: [
@@ -82,9 +84,12 @@ const list: Exercise[] = [
     loadType: 'lower',
     equipment: 'barbell',
     primary: 'back',
-    lbmRatio: 1.7,
+    standard: { kind: 'published', lift: 'deadlift' },
     increment: 5,
-    minLoad: 40,
+    // Not 40kg (the height of a bar loaded with 20s): forcing that floor would hand a
+    // small or older beginner a first session heavier than their whole target. The
+    // bar-height problem is solved with blocks, which the cues cover.
+    minLoad: 20,
     cues: [
       'Bar over mid-foot before you bend down.',
       'Take the slack out of the bar, then push the floor away.',
@@ -102,7 +107,7 @@ const list: Exercise[] = [
     loadType: 'lower',
     equipment: 'dumbbell',
     primary: 'legs',
-    lbmRatio: 0.55,
+    standard: { kind: 'estimated', of: 'squat', fraction: 0.35 },
     increment: 2,
     minLoad: 6,
     cues: ['Hold the bell against your chest.', 'Elbows track inside your knees.', 'Sit down, not back.'],
@@ -113,7 +118,7 @@ const list: Exercise[] = [
     loadType: 'upper',
     equipment: 'dumbbell',
     primary: 'chest',
-    lbmRatio: 0.46,
+    standard: { kind: 'estimated', of: 'bench', fraction: 0.4 },
     increment: 2,
     minLoad: 6,
     cues: ['Weight is per hand.', 'Lower until your upper arms are level with the bench.', 'Wrists stacked over elbows.'],
@@ -124,7 +129,7 @@ const list: Exercise[] = [
     loadType: 'upper',
     equipment: 'cable',
     primary: 'back',
-    lbmRatio: 0.95,
+    standard: { kind: 'estimated', of: 'bench', fraction: 0.9 },
     increment: 5,
     minLoad: 15,
     cues: ['Chest up, pull the bar to your collarbone.', 'Lead with your elbows.', 'Control the bar back up.'],
@@ -135,7 +140,7 @@ const list: Exercise[] = [
     loadType: 'upper',
     equipment: 'cable',
     primary: 'back',
-    lbmRatio: 0.9,
+    standard: { kind: 'estimated', of: 'bench', fraction: 0.95 },
     increment: 5,
     minLoad: 15,
     cues: ['Sit tall, no rocking.', 'Pull to your belly.', 'Squeeze the shoulder blades at the end.'],
@@ -146,7 +151,7 @@ const list: Exercise[] = [
     loadType: 'lower',
     equipment: 'machine',
     primary: 'legs',
-    lbmRatio: 2.6,
+    standard: { kind: 'estimated', of: 'squat', fraction: 1.8 },
     increment: 5,
     minLoad: 20,
     cues: ['Feet shoulder-width, mid-platform.', 'Lower until your knees reach ~90°.', 'Never lock the knees hard at the top.'],
@@ -157,7 +162,7 @@ const list: Exercise[] = [
     loadType: 'upper',
     equipment: 'dumbbell',
     primary: 'shoulders',
-    lbmRatio: 0.32,
+    standard: { kind: 'estimated', of: 'ohp', fraction: 0.4 },
     increment: 2,
     minLoad: 4,
     cues: ['Weight is per hand.', 'Start at ear height.', 'Press up and slightly together.'],
@@ -168,7 +173,7 @@ const list: Exercise[] = [
     loadType: 'lower',
     equipment: 'barbell',
     primary: 'legs',
-    lbmRatio: 1.25,
+    standard: { kind: 'estimated', of: 'deadlift', fraction: 0.65 },
     increment: 2.5,
     minLoad: 20,
     cues: ['Soft knees, push your hips back.', 'Bar stays against your legs.', 'Stop when you feel the hamstring stretch.'],
@@ -179,7 +184,7 @@ const list: Exercise[] = [
     loadType: 'upper',
     equipment: 'dumbbell',
     primary: 'chest',
-    lbmRatio: 0.4,
+    standard: { kind: 'estimated', of: 'bench', fraction: 0.34 },
     increment: 2,
     minLoad: 6,
     cues: ['Bench at 30°, no steeper.', 'Weight is per hand.', 'Elbows at ~45° from your body.'],
@@ -190,7 +195,7 @@ const list: Exercise[] = [
     loadType: 'accessory',
     equipment: 'machine',
     primary: 'legs',
-    lbmRatio: 0.7,
+    standard: { kind: 'estimated', of: 'squat', fraction: 0.35 },
     increment: 5,
     minLoad: 10,
     cues: ['Hips flat on the pad.', 'Curl all the way, lower slowly.'],
@@ -201,7 +206,7 @@ const list: Exercise[] = [
     loadType: 'accessory',
     equipment: 'cable',
     primary: 'shoulders',
-    lbmRatio: 0.45,
+    standard: { kind: 'estimated', of: 'bench', fraction: 0.35 },
     increment: 2.5,
     minLoad: 10,
     cues: ['Rope at eye height.', 'Pull to your forehead, thumbs back.', 'Light weight, high reps — this is shoulder insurance.'],
@@ -212,7 +217,7 @@ const list: Exercise[] = [
     loadType: 'accessory',
     equipment: 'dumbbell',
     primary: 'arms',
-    lbmRatio: 0.22,
+    standard: { kind: 'estimated', of: 'bench', fraction: 0.22 },
     increment: 2,
     minLoad: 4,
     cues: ['Weight is per hand.', 'Elbows pinned to your ribs.', 'No swinging.'],
@@ -223,7 +228,7 @@ const list: Exercise[] = [
     loadType: 'accessory',
     equipment: 'cable',
     primary: 'arms',
-    lbmRatio: 0.45,
+    standard: { kind: 'estimated', of: 'bench', fraction: 0.45 },
     increment: 2.5,
     minLoad: 10,
     cues: ['Elbows locked at your sides.', 'Full lockout at the bottom.'],
@@ -234,7 +239,7 @@ const list: Exercise[] = [
     loadType: 'bodyweight',
     equipment: 'bodyweight',
     primary: 'core',
-    lbmRatio: 0,
+    standard: { kind: 'bodyweight' },
     increment: 0,
     minLoad: 0,
     cues: ['Reps are seconds.', 'Squeeze glutes, ribs down.', 'Stop the set when your hips sag.'],
@@ -245,7 +250,7 @@ const list: Exercise[] = [
     loadType: 'bodyweight',
     equipment: 'bodyweight',
     primary: 'core',
-    lbmRatio: 0,
+    standard: { kind: 'bodyweight' },
     increment: 0,
     minLoad: 0,
     cues: ['No swinging.', 'Curl your pelvis up at the top.'],

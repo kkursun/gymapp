@@ -1,6 +1,6 @@
 import { getExercise } from '../data/exercises';
 import { carryOverWeights, type Promotion as PromotionType } from '../engine/graduation';
-import { seedNewLift } from '../engine/starting';
+import { isLoaded, seedNewLift } from '../engine/starting';
 import { fmt } from '../engine/progression';
 import { useStore } from '../store/StoreContext';
 import { Card, Pill } from '../components/ui';
@@ -15,7 +15,7 @@ export function PromotionScreen({ promotion, onClose }: { promotion: PromotionTy
   const nextLifts = carryOverWeights(state.lifts, promotion.to.id, (id) => seedNewLift(state.lifts, profile, id));
 
   const carried = Object.values(nextLifts).filter((l) => state.lifts[l.exerciseId]);
-  const fresh = Object.values(nextLifts).filter((l) => !state.lifts[l.exerciseId] && getExercise(l.exerciseId).lbmRatio > 0);
+  const fresh = Object.values(nextLifts).filter((l) => !state.lifts[l.exerciseId] && isLoaded(l.exerciseId));
 
   return (
     <div className="screen screen--plain">
@@ -50,7 +50,7 @@ export function PromotionScreen({ promotion, onClose }: { promotion: PromotionTy
         <h3>What you keep</h3>
         <p className="small muted">These lifts carry over at exactly the weight you're on now.</p>
         {carried
-          .filter((l) => getExercise(l.exerciseId).lbmRatio > 0)
+          .filter((l) => isLoaded(l.exerciseId))
           .map((l) => (
             <div className="liftrow" key={l.exerciseId}>
               <div className="lift-name">{getExercise(l.exerciseId).name}</div>

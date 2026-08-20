@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { getExercise } from '../data/exercises';
 import { getProgram } from '../data/programs';
 import { describeStandardProgress, standardProgress } from '../engine/graduation';
-import { targetFiveRepMax } from '../engine/starting';
+import { isLoaded, targetFiveRepMax } from '../engine/starting';
 import { fmt } from '../engine/progression';
 import { readBody } from '../engine/body';
 import { useStore } from '../store/StoreContext';
@@ -21,7 +21,7 @@ export function Progress() {
 
   const trackedIds = useMemo(() => {
     const ids = new Set(program.days.flatMap((d) => d.slots.map((s) => s.exerciseId)));
-    return [...ids].filter((id) => getExercise(id).lbmRatio > 0);
+    return [...ids].filter(isLoaded);
   }, [program]);
 
   // One point per session per lift, oldest first.

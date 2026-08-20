@@ -1,3 +1,5 @@
+import type { StandardSource } from './engine/standards';
+
 export type Sex = 'male' | 'female';
 export type Experience = 'never' | 'some' | 'returning';
 export type MuscleGroup = 'legs' | 'chest' | 'back' | 'shoulders' | 'arms' | 'core';
@@ -11,8 +13,8 @@ export interface Exercise {
   loadType: LoadType;
   equipment: Equipment;
   primary: MuscleGroup;
-  /** Novice-standard 5-rep max as a multiple of LEAN body mass. 0 = bodyweight-only. */
-  lbmRatio: number;
+  /** How this lift's novice standard is derived — see engine/standards.ts. */
+  standard: StandardSource;
   /** Smallest weight change the gym's hardware allows, in kg. */
   increment: number;
   /** Lightest usable load in kg (empty bar, lightest dumbbell pair, machine stack start). */

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { ageFactor, bmi, bmiBand, leanBodyMass } from '../body';
+import { bmi, bmiBand, leanBodyMass } from '../body';
+import { ageFactor } from '../standards';
 import { buildLiftStates, recommendProgram, seedNewLift, startingWeight, strengthRatio, targetFiveRepMax } from '../starting';
 import { getExercise } from '../../data/exercises';
 import type { Profile } from '../../types';
@@ -39,11 +40,38 @@ describe('body metrics', () => {
     expect(bmiBand(bmi(105, 180))).toBe('high');
   });
 
-  it('tapers strength expectations with age but never off a cliff', () => {
-    expect(ageFactor(25)).toBe(1);
-    expect(ageFactor(16)).toBe(0.8);
-    expect(ageFactor(50)).toBeLessThan(1);
-    expect(ageFactor(90)).toBeGreaterThanOrEqual(0.65);
+  it('follows the published age-grading coefficients', () => {
+    // Peak is 24-39 in both the Foster and McCulloch schemes: no adjustment applies.
+    expect(ageFactor(24)).toBe(1);
+    expect(ageFactor(30)).toBe(1);
+    expect(ageFactor(39)).toBe(1);
+    expect(ageFactor(40)).toBe(1);
+
+    // Masters: the reciprocal of the McCulloch coefficient for that age.
+    expect(ageFactor(50)).toBeCloseTo(1 / 1.13, 4);
+    expect(ageFactor(60)).toBeCloseTo(1 / 1.34, 4);
+    expect(ageFactor(70)).toBeCloseTo(1 / 1.645, 4);
+    expect(ageFactor(83)).toBeCloseTo(1 / 2.19, 4);
+
+    // Juniors: the reciprocal of the Foster coefficient.
+    expect(ageFactor(16)).toBeCloseTo(1 / 1.13, 4);
+    expect(ageFactor(18)).toBeCloseTo(1 / 1.06, 4);
+    expect(ageFactor(23)).toBe(1);
+  });
+
+  it('is monotonically decreasing once past peak, and clamps at the table edges', () => {
+    for (let age = 40; age < 83; age++) {
+      expect(ageFactor(age)).toBeGreaterThan(ageFactor(age + 1));
+    }
+    // Beyond the published tables the nearest coefficient is held rather than extrapolated.
+    expect(ageFactor(95)).toBe(ageFactor(83));
+    expect(ageFactor(12)).toBe(ageFactor(14));
+  });
+
+  it('rises through the teens as a junior matures', () => {
+    for (let age = 14; age < 23; age++) {
+      expect(ageFactor(age)).toBeLessThan(ageFactor(age + 1));
+    }
   });
 });
 

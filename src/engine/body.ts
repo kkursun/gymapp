@@ -26,25 +26,15 @@ export function bmiBand(value: number): 'under' | 'healthy' | 'over' | 'high' {
   return 'high';
 }
 
-/**
- * Strength peaks in the 20s and declines slowly. Under-18s are still developing, so they
- * start lighter regardless of how strong they feel.
- */
-export function ageFactor(age: number): number {
-  if (age < 18) return 0.8;
-  if (age <= 30) return 1;
-  return clamp(1 - (age - 30) * 0.006, 0.65, 1);
-}
-
 /** How close to a novice standard we dare start someone. */
 export function experienceFactor(experience: Profile['experience']): number {
   switch (experience) {
     case 'never':
-      return 0.45;
+      return 0.4;
     case 'some':
-      return 0.6;
+      return 0.55;
     case 'returning':
-      return 0.72;
+      return 0.68;
   }
 }
 
@@ -52,11 +42,12 @@ export function clamp(v: number, lo: number, hi: number): number {
   return Math.min(Math.max(v, lo), hi);
 }
 
+// Pure body composition only. Age and strength scaling live in ./standards, which
+// imports this module — keeping the dependency one-directional.
 export interface BodyReadout {
   lbm: number;
   bmi: number;
   band: ReturnType<typeof bmiBand>;
-  ageFactor: number;
   experienceFactor: number;
 }
 
@@ -66,7 +57,6 @@ export function readBody(profile: Profile): BodyReadout {
     lbm: leanBodyMass(profile.sex, profile.bodyweightKg, profile.heightCm),
     bmi: value,
     band: bmiBand(value),
-    ageFactor: ageFactor(profile.age),
     experienceFactor: experienceFactor(profile.experience),
   };
 }

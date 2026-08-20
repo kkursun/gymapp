@@ -1,7 +1,8 @@
 import { getExercise } from '../data/exercises';
 import { getProgram, PROGRAMS } from '../data/programs';
 import type { LiftState, Profile, Program } from '../types';
-import { readBody, clamp, bmiBand, bmi } from './body';
+import { clamp, bmiBand, bmi, readBody } from './body';
+import { noviceOneRepMax, oneRepMaxToReps } from './standards';
 import { floorToIncrement } from './plates';
 
 /**
@@ -10,9 +11,14 @@ import { floorToIncrement } from './plates';
  */
 export function targetFiveRepMax(profile: Profile, exerciseId: string): number {
   const ex = getExercise(exerciseId);
-  if (ex.lbmRatio === 0) return 0;
-  const body = readBody(profile);
-  return body.lbm * ex.lbmRatio * body.ageFactor;
+  const oneRm = noviceOneRepMax(profile, ex.standard, ex.loadType);
+  if (oneRm === 0) return 0;
+  return oneRepMaxToReps(oneRm, 5);
+}
+
+/** True when the lift takes an external load the app can prescribe. */
+export function isLoaded(exerciseId: string): boolean {
+  return getExercise(exerciseId).standard.kind !== 'bodyweight';
 }
 
 /**
@@ -22,10 +28,11 @@ export function targetFiveRepMax(profile: Profile, exerciseId: string): number {
  */
 export function startingWeight(profile: Profile, exerciseId: string): number {
   const ex = getExercise(exerciseId);
-  if (ex.lbmRatio === 0) return 0;
+  const target = targetFiveRepMax(profile, exerciseId);
+  if (target === 0) return 0;
 
   const body = readBody(profile);
-  let weight = targetFiveRepMax(profile, exerciseId) * body.experienceFactor;
+  let weight = target * body.experienceFactor;
 
   // Very light lifters have less structural room to spare; very heavy ones carry a
   // smaller share of that bodyweight as usable muscle on the barbell lifts.
@@ -34,7 +41,7 @@ export function startingWeight(profile: Profile, exerciseId: string): number {
 
   weight = floorToIncrement(weight, ex.increment);
   // Never below what the hardware can even make, and never above the standard itself.
-  return clamp(weight, ex.minLoad, Math.max(ex.minLoad, targetFiveRepMax(profile, exerciseId)));
+  return clamp(weight, ex.minLoad, Math.max(ex.minLoad, target));
 }
 
 export function buildLiftStates(profile: Profile, programId: string): Record<string, LiftState> {
@@ -62,7 +69,7 @@ export function buildLiftStates(profile: Profile, programId: string): Record<str
  */
 export function strengthRatio(lifts: Record<string, LiftState>, profile: Profile): number {
   const ratios = Object.values(lifts)
-    .filter((l) => getExercise(l.exerciseId).lbmRatio > 0)
+    .filter((l) => isLoaded(l.exerciseId))
     .map((l) => {
       const target = targetFiveRepMax(profile, l.exerciseId);
       return target > 0 ? Math.max(l.bestWeight, l.workingWeight) / target : 0;
@@ -87,7 +94,7 @@ export function seedNewLift(
   exerciseId: string,
 ): number {
   const ex = getExercise(exerciseId);
-  if (ex.lbmRatio === 0) return 0;
+  if (!isLoaded(exerciseId)) return 0;
 
   const ratio = strengthRatio(lifts, profile);
   if (ratio === 0) return startingWeight(profile, exerciseId);
