@@ -111,8 +111,12 @@ not a decision made behind your back: Upper/Lower is one button away.
 - **Foundation → 5×5**: ~18 sessions or 6 weeks in, once you're using real weight on the
   goblet squat. Never offered if your gym has no rack.
 - **5×5 → Upper/Lower**: whichever comes first — three deloads across your main lifts
-  (linear progression is genuinely finished), 60 sessions, or your squat, bench and
-  deadlift all clearing the novice standard for your size.
+  (linear progression is genuinely finished), 60 sessions, or clearing the novice standard
+  on most of the program's main lifts. Clearing the standards promotes you immediately;
+  there is no session quota on top of it.
+
+A standard counts as cleared only on weight you have **demonstrated** — completed every
+prescribed rep at. Loading the bar heavier without lifting it moves nothing.
 - **Upper/Lower → Momentum**: four deloads across the main lifts, or 100 sessions. At that
   point extra recovery has stopped rescuing linear progression, and the answer is rep
   ranges rather than more weight.

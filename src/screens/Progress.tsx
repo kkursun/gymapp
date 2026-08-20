@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { getExercise } from '../data/exercises';
 import { getProgram } from '../data/programs';
-import { describeStandardProgress, standardProgress } from '../engine/graduation';
-import { isLoaded, targetFiveRepMax } from '../engine/starting';
+import { clearedStandards, describeStandardProgress, standardProgress } from '../engine/graduation';
+import { isLoaded } from '../engine/starting';
 import { fmt } from '../engine/progression';
 import { readBody } from '../engine/body';
 import { useStore } from '../store/StoreContext';
@@ -55,6 +55,7 @@ export function Progress() {
   );
 
   const standards = useMemo(() => standardProgress(state, profile), [state, profile]);
+  const cleared = useMemo(() => clearedStandards(state, profile), [state, profile]);
 
   const stalled = useMemo(
     () => Object.values(state.lifts).filter((l) => l.deloads > 0 || l.consecutiveFailures > 0),
@@ -116,13 +117,12 @@ export function Progress() {
         </p>
         {standards.map((s) => {
           const ex = getExercise(s.id);
-          const target = targetFiveRepMax(profile, s.id);
           return (
             <div key={s.id} style={{ marginBottom: 14 }}>
               <div className="row" style={{ marginBottom: 6 }}>
                 <span style={{ fontSize: 14.5 }}>{ex.name}</span>
                 <span className="small muted num">
-                  {fmt(Math.max(state.lifts[s.id].bestWeight, state.lifts[s.id].workingWeight))} / {fmt(Math.round(target))}kg
+                  {fmt(s.demonstrated)} / {fmt(Math.round(s.target))}kg
                 </span>
               </div>
               <Meter value={s.ratio} />
@@ -130,6 +130,14 @@ export function Progress() {
             </div>
           );
         })}
+        <div className="divider" />
+        <p className="small muted" style={{ marginBottom: 0 }}>
+          {cleared.length >= 3
+            ? 'Cleared. Your upgrade is waiting on the Train tab.'
+            : `Counts weight you have actually completed every rep at, not what is loaded next session. Clear ${
+                3 - cleared.length
+              } more and the app moves you up.`}
+        </p>
       </Card>
 
       <div className="section-title">

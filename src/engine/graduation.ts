@@ -1,4 +1,5 @@
 import { getProgram, PROGRAM_MAP } from '../data/programs';
+import { getExercise } from '../data/exercises';
 import type { AppState, Profile, Program } from '../types';
 import { targetFiveRepMax } from './starting';
 
@@ -14,7 +15,26 @@ export interface Promotion {
   urgent: boolean;
 }
 
-const MAIN_LIFTS = ['squat', 'bench', 'deadlift', 'ohp', 'row'];
+/**
+ * The compound lifts of whichever program the lifter is on. Deriving this from the
+ * program rather than hardcoding the barbell five matters: Foundation trains none of
+ * them, so a fixed list left a Foundation lifter permanently unable to clear a standard.
+ * Accessories and bodyweight holds are excluded — they are not what a program is judged on.
+ */
+function mainLiftsOf(state: AppState): string[] {
+  if (!state.programId) return [];
+  const program = getProgram(state.programId);
+  const ids = new Set(program.days.flatMap((d) => d.slots.map((slot) => slot.exerciseId)));
+  return [...ids].filter((id) => {
+    const loadType = getExercise(id).loadType;
+    return loadType === 'lower' || loadType === 'upper';
+  });
+}
+
+/** How many of a program's main lifts must clear the standard for it to be outgrown. */
+function clearedThreshold(mainCount: number): number {
+  return Math.max(2, Math.ceil(mainCount * 0.6));
+}
 
 function sessionsOn(state: AppState, programId: string): number {
   return state.sessions.filter((s) => s.programId === programId).length;
@@ -28,16 +48,32 @@ function weeksOn(state: AppState, programId: string): number {
 
 /** Deloads across the program's main barbell lifts — the signal that linear gains are done. */
 function mainLiftDeloads(state: AppState): number {
-  return MAIN_LIFTS.reduce((n, id) => n + (state.lifts[id]?.deloads ?? 0), 0);
+  return mainLiftsOf(state).reduce((n, id) => n + (state.lifts[id]?.deloads ?? 0), 0);
 }
 
 /** How far the lifter has come on their big lifts, as a share of their novice standard. */
-export function standardProgress(state: AppState, profile: Profile): { id: string; ratio: number }[] {
-  return MAIN_LIFTS.filter((id) => state.lifts[id]).map((id) => {
-    const target = targetFiveRepMax(profile, id);
-    const best = Math.max(state.lifts[id].bestWeight, state.lifts[id].workingWeight);
-    return { id, ratio: target > 0 ? best / target : 0 };
-  });
+export function standardProgress(
+  state: AppState,
+  profile: Profile,
+): { id: string; ratio: number; demonstrated: number; target: number }[] {
+  return mainLiftsOf(state)
+    .filter((id) => state.lifts[id])
+    .map((id) => {
+      const target = targetFiveRepMax(profile, id);
+      // bestWeight only. workingWeight is what the lifter is *about to* attempt, so
+      // counting it would mark a standard cleared the moment someone taps the + button,
+      // before they have lifted anything. A standard has to be demonstrated: all
+      // prescribed reps completed at that weight.
+      const demonstrated = state.lifts[id].bestWeight;
+      return { id, ratio: target > 0 ? demonstrated / target : 0, demonstrated, target };
+    });
+}
+
+/** Main lifts whose novice standard the lifter has actually demonstrated. */
+export function clearedStandards(state: AppState, profile: Profile): string[] {
+  return standardProgress(state, profile)
+    .filter((p) => Math.round(p.ratio * 100) >= 100)
+    .map((p) => p.id);
 }
 
 /**
@@ -66,7 +102,11 @@ export function checkPromotion(state: AppState): Promotion | null {
     if (!state.profile.hasRack) return null;
     const consistent = sessions >= 18 || weeks >= 6;
     const strongEnough = (state.lifts['goblet-squat']?.bestWeight ?? 0) >= 20;
-    if (consistent && strongEnough) {
+    if (clearedStandards(state, state.profile).length >= clearedThreshold(mainLiftsOf(state).length)) {
+      ready = true;
+      reasons.push('You have cleared the novice standard on the lifts this program trains — machines have given you everything they can.');
+      reasons.push('The barbell lifts add weight in smaller, more frequent steps, so progress gets smoother from here.');
+    } else if (consistent && strongEnough) {
       ready = true;
       reasons.push(`${sessions} sessions logged — the movement patterns are yours now.`);
       reasons.push('The barbell lifts add weight in smaller, more frequent steps than dumbbells can, so progress gets smoother, not harder.');
@@ -84,14 +124,18 @@ export function checkPromotion(state: AppState): Promotion | null {
       ready = true;
       reasons.push(`${sessions} sessions on 5×5 — you are past the point where a beginner program is the fastest route.`);
       reasons.push('Four days a week lets you train each lift harder without wrecking the next session.');
-    } else if (state.profile) {
-      // Or when the lifts themselves have cleared the novice standard.
-      const progress = standardProgress(state, state.profile);
-      const cleared = progress.filter((p) => p.ratio >= 1);
-      if (cleared.length >= 3 && sessions >= 24) {
+    } else {
+      // Or the lifts themselves have cleared the novice standard. No session gate here:
+      // the standard is defined by weight actually lifted, so clearing it already proves
+      // the work was done, and the app promises on the Progress screen that clearing
+      // these means the program has done its job. Making the lifter also serve a session
+      // count would quietly break that promise.
+      const cleared = clearedStandards(state, state.profile);
+      if (cleared.length >= clearedThreshold(mainLiftsOf(state).length)) {
+        const names = cleared.map((id) => getExercise(id).name).join(', ');
         ready = true;
-        reasons.push(`Squat, bench and deadlift have all passed the novice standard for your size — ${cleared.map((c) => c.id).join(', ')}.`);
-        reasons.push('That is the ceiling this program was built for.');
+        reasons.push(`${names} have all passed the novice standard for your size — that is the ceiling this program was built for.`);
+        reasons.push('Upper/Lower gives each lift more volume and an extra day of recovery, which is what keeps a post-novice lifter progressing.');
       }
     }
   }

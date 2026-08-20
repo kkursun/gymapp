@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { carryOverWeights, checkPromotion, describeStandardProgress } from '../graduation';
+import {
+  carryOverWeights,
+  checkPromotion,
+  clearedStandards,
+  describeStandardProgress,
+} from '../graduation';
 import { buildLiftStates, startingWeight } from '../starting';
 import { initialState } from '../../store/state';
 import type { AppState, Profile, Session } from '../../types';
@@ -163,5 +168,57 @@ describe('graduation from Upper/Lower', () => {
       s.lifts[id] = { ...s.lifts[id], deloads: 9 };
     }
     expect(checkPromotion(s)).toBeNull();
+  });
+});
+
+describe('clearing the novice standard', () => {
+  /** Put every main lift at a weight that clears its standard. */
+  function demonstrate(s: AppState, mode: 'best' | 'working') {
+    for (const id of ['squat', 'bench', 'deadlift', 'ohp', 'row']) {
+      const heavy = 10_000;
+      s.lifts[id] = {
+        ...s.lifts[id],
+        bestWeight: mode === 'best' ? heavy : 0,
+        workingWeight: mode === 'working' ? heavy : s.lifts[id].workingWeight,
+      };
+    }
+    return s;
+  }
+
+  it('promotes as soon as the standards are demonstrated, with no session quota', () => {
+    // The Progress screen tells the lifter that clearing these means the program is done.
+    // It must not then hold them back for a session count they were never told about.
+    const s = demonstrate(stateOn('strength-5x5', 6), 'best');
+    const p = checkPromotion(s);
+    expect(p?.to.id).toBe('upper-lower');
+    expect(p?.reasons.join(' ')).toMatch(/novice standard/i);
+  });
+
+  it('names the lifts properly rather than printing internal ids', () => {
+    const p = checkPromotion(demonstrate(stateOn('strength-5x5', 6), 'best'));
+    expect(p?.reasons.join(' ')).toContain('Barbell Squat');
+    expect(p?.reasons.join(' ')).not.toContain('ohp');
+  });
+
+  it('does not count weight that was loaded but never lifted', () => {
+    // Tapping + to 200kg is not a demonstration of anything.
+    const s = demonstrate(stateOn('strength-5x5', 6), 'working');
+    expect(clearedStandards(s, s.profile!)).toHaveLength(0);
+    expect(checkPromotion(s)).toBeNull();
+  });
+
+  it('needs more than one lift over the line', () => {
+    const s = stateOn('strength-5x5', 6);
+    s.lifts['squat'] = { ...s.lifts['squat'], bestWeight: 10_000 };
+    expect(clearedStandards(s, s.profile!)).toEqual(['squat']);
+    expect(checkPromotion(s)).toBeNull();
+  });
+
+  it('lets a Foundation lifter out early on demonstrated strength', () => {
+    const s = stateOn('foundation', 5);
+    for (const id of ['goblet-squat', 'db-bench', 'seated-row', 'leg-press']) {
+      s.lifts[id] = { ...s.lifts[id], bestWeight: 10_000 };
+    }
+    expect(checkPromotion(s)?.to.id).toBe('strength-5x5');
   });
 });
