@@ -32,6 +32,15 @@ describe('program integrity', () => {
       }
       // Day ids must be unique, or the rotation and history lookups collide.
       expect(new Set(p.days.map((d) => d.id)).size).toBe(p.days.length);
+      // So must exercise ids within a day: finishSession, Workout and the session summary
+      // all resolve a slot's scheme with `slots.find(byExerciseId)`, and Workout keys its
+      // rows on the same id. A repeated lift would take the first slot's scheme twice.
+      for (const day of p.days) {
+        expect(
+          new Set(day.slots.map((s) => s.exerciseId)).size,
+          `${p.name} / ${day.name} lists the same exercise twice`,
+        ).toBe(day.slots.length);
+      }
     }
   });
 

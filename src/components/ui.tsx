@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 
 export function Card({
@@ -59,6 +60,29 @@ export function Stepper({
 }
 
 export function Sheet({ children, onClose }: { children: ReactNode; onClose: () => void }) {
+  const panel = useRef<HTMLDivElement>(null);
+  // Held in a ref so an inline `onClose` at the call site cannot re-bind the listener on
+  // every render of the screen behind the sheet.
+  const close = useRef(onClose);
+  useEffect(() => {
+    close.current = onClose;
+  });
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close.current();
+    };
+    const opener = document.activeElement as HTMLElement | null;
+    document.addEventListener('keydown', onKey);
+    panel.current?.focus();
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      // Put focus back on the control that opened the sheet, so keyboard and screen
+      // reader users are not dropped at the top of the document.
+      opener?.focus?.();
+    };
+  }, []);
+
   return (
     <div
       className="sheet-backdrop"
@@ -68,7 +92,9 @@ export function Sheet({ children, onClose }: { children: ReactNode; onClose: () 
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="sheet">{children}</div>
+      <div className="sheet" ref={panel} tabIndex={-1}>
+        {children}
+      </div>
     </div>
   );
 }

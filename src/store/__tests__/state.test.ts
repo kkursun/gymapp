@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { currentDay, initialState, reducer } from '../state';
+import { currentDay, initialState, normalizeState, reducer, STATE_VERSION } from '../state';
 import type { Action } from '../state';
 import type { AppState, Profile } from '../../types';
 
@@ -208,5 +208,105 @@ describe('robustness against an incomplete saved state', () => {
       if (ex.exerciseId === 'hanging-knee-raise' || ex.exerciseId === 'plank') continue;
       expect(meta.weight, `${ex.exerciseId} was prescribed 0kg`).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('sessions that were cut short', () => {
+  it('changes nothing when only some of the sets were logged', () => {
+    const before = onboarded();
+    let s = reducer(before, { type: 'startSession' });
+    // One set of the squat's five, then "Finish early".
+    s = reducer(s, { type: 'toggleSet', exerciseIndex: 0, setIndex: 0 });
+    s = reducer(s, { type: 'finishSession', durationSec: 300 });
+
+    expect(s.lifts['squat'].workingWeight).toBe(before.lifts['squat'].workingWeight);
+    expect(s.lifts['squat'].bestWeight).toBe(0);
+    expect(s.lifts['squat'].consecutiveFailures).toBe(0);
+    expect(s.sessions[0].exercises[0].outcome).toBe('held');
+  });
+
+  it('still records the session so the lifter can see they trained', () => {
+    let s = reducer(onboarded(), { type: 'startSession' });
+    s = reducer(s, { type: 'toggleSet', exerciseIndex: 0, setIndex: 0 });
+    s = reducer(s, { type: 'finishSession', durationSec: 300 });
+    expect(s.sessions).toHaveLength(1);
+    expect(s.dayCursor).toBe(1);
+  });
+});
+
+describe('logging a set', () => {
+  it('keeps a hand-entered rep count through an accidental double tap', () => {
+    let s = reducer(onboarded(), { type: 'startSession' });
+    s = reducer(s, { type: 'setReps', exerciseIndex: 0, setIndex: 0, reps: 3 });
+    s = reducer(s, { type: 'toggleSet', exerciseIndex: 0, setIndex: 0 });
+    s = reducer(s, { type: 'toggleSet', exerciseIndex: 0, setIndex: 0 });
+
+    const set = s.active!.exercises[0].sets[0];
+    expect(set.reps).toBe(3);
+    expect(set.completed).toBe(true);
+  });
+
+  it('ticks an untouched set at its target', () => {
+    let s = reducer(onboarded(), { type: 'startSession' });
+    s = reducer(s, { type: 'toggleSet', exerciseIndex: 0, setIndex: 0 });
+    const set = s.active!.exercises[0].sets[0];
+    expect(set.reps).toBe(set.targetReps);
+  });
+});
+
+describe('measurements', () => {
+  it('stamps the height as confirmed when it is updated from Settings', () => {
+    const before = onboarded();
+    const s = reducer(before, { type: 'updateProfile', patch: { heightCm: 181 } });
+    expect(s.profile!.heightCm).toBe(181);
+    expect(s.profile!.heightMeasuredAt).not.toBe(before.profile!.heightMeasuredAt);
+  });
+
+  it('leaves the height clock alone when something else is patched', () => {
+    const before = onboarded();
+    const s = reducer(before, { type: 'updateProfile', patch: { hasRack: false } });
+    expect(s.profile!.heightMeasuredAt).toBe(before.profile!.heightMeasuredAt);
+  });
+});
+
+describe('restoring a backup', () => {
+  it('fills in everything a truncated file left out', () => {
+    const s = reducer(onboarded(), {
+      type: 'import',
+      state: { version: STATE_VERSION, lifts: {} } as unknown as AppState,
+    });
+    expect(s.settings).toEqual(initialState.settings);
+    expect(s.sessions).toEqual([]);
+    expect(s.bodyweightLog).toEqual([]);
+    expect(s.handledPromotions).toEqual([]);
+  });
+
+  it('drops a program this build does not have rather than throwing on render', () => {
+    const backup = { ...onboarded(), programId: 'some-removed-program' } as unknown as AppState;
+    const s = reducer(initialState, { type: 'import', state: backup });
+    expect(s.programId).toBeNull();
+    expect(s.active).toBeNull();
+  });
+
+  it('refuses a profile whose numbers cannot be computed with', () => {
+    const backup = {
+      ...onboarded(),
+      profile: { ...profile, bodyweightKg: Number.NaN },
+    } as unknown as AppState;
+    expect(reducer(initialState, { type: 'import', state: backup }).profile).toBeNull();
+  });
+
+  it('keeps a good backup intact', () => {
+    const good = run(onboarded(), []);
+    const s = reducer(initialState, { type: 'import', state: perfectSession(good) });
+    expect(s.programId).toBe('strength-5x5');
+    expect(s.sessions).toHaveLength(1);
+    expect(Object.keys(s.lifts)).toHaveLength(5);
+  });
+
+  it('normalizes junk without throwing', () => {
+    expect(() => normalizeState(null)).not.toThrow();
+    expect(normalizeState(undefined).version).toBe(STATE_VERSION);
+    expect(normalizeState({ sessions: 'nope' } as unknown as AppState).sessions).toEqual([]);
   });
 });

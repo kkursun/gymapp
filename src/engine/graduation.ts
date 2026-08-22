@@ -36,6 +36,23 @@ function clearedThreshold(mainCount: number): number {
   return Math.max(2, Math.ceil(mainCount * 0.6));
 }
 
+/**
+ * Programs where clearing the novice standards is genuinely a route to the next program.
+ * Upper/Lower graduates on deloads and session count instead, and Momentum is the last
+ * program, so on those the standards are a progress read-out and nothing more.
+ */
+const STANDARDS_PROMOTE = new Set(['foundation', 'strength-5x5']);
+
+/** How many standards this lifter's program needs cleared. Never hardcode this. */
+export function standardsNeeded(state: AppState): number {
+  return clearedThreshold(mainLiftsOf(state).length);
+}
+
+/** Whether clearing them will actually move this lifter on. */
+export function promotesOnStandards(state: AppState): boolean {
+  return !!state.programId && STANDARDS_PROMOTE.has(state.programId);
+}
+
 function sessionsOn(state: AppState, programId: string): number {
   return state.sessions.filter((s) => s.programId === programId).length;
 }

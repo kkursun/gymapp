@@ -102,7 +102,13 @@ p { margin: 0 0 12px; }
   width: 100%; padding: 13px 14px; border-radius: 11px;
   background: var(--surface-2); border: 1px solid var(--line); outline: none;
 }
-.input:focus { border-color: var(--accent); }
+.input:focus-visible { border-color: var(--accent); outline: 2px solid var(--accent); outline-offset: 1px; }
+/* Every control keeps a visible keyboard focus ring; pointer users never see it. */
+button:focus-visible, .choice:focus-visible, .setbtn:focus-visible, .sheet:focus-visible,
+summary:focus-visible, a:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+.sheet:focus-visible { outline-offset: -2px; }
 .input-affix { position: relative; }
 .input-affix .affix { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
 

@@ -4,7 +4,7 @@ import { readBody } from '../engine/body';
 import { fmt } from '../engine/progression';
 import { useStore } from '../store/StoreContext';
 import { Card, Sheet, Stepper } from '../components/ui';
-import { STORAGE_KEY } from '../store/state';
+import { STATE_VERSION, STORAGE_KEY } from '../store/state';
 
 export function Settings() {
   const { state, dispatch } = useStore();
@@ -21,19 +21,32 @@ export function Settings() {
     const a = document.createElement('a');
     a.href = url;
     a.download = `ironpath-${new Date().toISOString().slice(0, 10)}.json`;
+    // Firefox ignores a click on a detached anchor, and revoking the URL in the same tick
+    // cancels the save it just started. Both cost the user the backup without saying so.
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
   };
 
   const importData = (file: File) => {
     file.text().then((text) => {
       try {
         const parsed = JSON.parse(text);
-        if (!parsed.version || !parsed.lifts) throw new Error('not an Ironpath backup');
+        if (!parsed || typeof parsed !== 'object' || !parsed.lifts) {
+          throw new Error('this is not an Ironpath backup.');
+        }
+        // Accepting a backup from a different version used to "work", then get discarded
+        // on the next launch — taking the profile and every logged session with it.
+        if (parsed.version !== STATE_VERSION) {
+          throw new Error(
+            `it was saved by a different version of Ironpath (backup v${parsed.version ?? '?'}, this app reads v${STATE_VERSION}). Nothing has been changed.`,
+          );
+        }
         dispatch({ type: 'import', state: parsed });
         alert('Backup restored.');
       } catch (e) {
-        alert(`Could not read that file: ${(e as Error).message}`);
+        alert(`Could not restore that file — ${(e as Error).message}`);
       }
     });
   };
@@ -239,7 +252,10 @@ export function Settings() {
             <button
               className="btn btn--primary"
               onClick={() => {
-                dispatch({ type: 'updateProfile', patch: { heightCm: height } });
+                dispatch({
+                  type: 'updateProfile',
+                  patch: { heightCm: height, heightMeasuredAt: new Date().toISOString() },
+                });
                 if (weight !== profile.bodyweightKg) dispatch({ type: 'logBodyweight', kg: weight });
                 setEditBody(false);
               }}

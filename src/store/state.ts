@@ -1,4 +1,4 @@
-import { getProgram } from '../data/programs';
+import { getProgram, PROGRAM_MAP } from '../data/programs';
 import { getExercise } from '../data/exercises';
 import { applyProgression, buildSets } from '../engine/progression';
 import { buildLiftStates, seedNewLift, startingWeight } from '../engine/starting';
@@ -119,10 +119,11 @@ export function reducer(state: AppState, action: Action): AppState {
         if (i !== action.exerciseIndex) return ex;
         return {
           ...ex,
+          // Only the tick changes. buildSets already seeds `reps` with the target, so
+          // re-ticking must never overwrite a rep count the lifter logged by hand — that
+          // silently turned a missed set into a successful one.
           sets: ex.sets.map((s, j) =>
-            j === action.setIndex
-              ? { ...s, completed: !s.completed, reps: s.completed ? s.reps : s.targetReps }
-              : s,
+            j === action.setIndex ? { ...s, completed: !s.completed } : s,
           ),
         };
       });
@@ -240,8 +241,22 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'snoozeCheckIn':
       return { ...state, checkInSnoozedUntil: snoozeUntil() };
 
-    case 'updateProfile':
-      return state.profile ? { ...state, profile: { ...state.profile, ...action.patch } } : state;
+    case 'updateProfile': {
+      if (!state.profile) return state;
+      const { patch } = action;
+      return {
+        ...state,
+        profile: {
+          ...state.profile,
+          ...patch,
+          // Confirming a height is a fresh measurement, so the check-in clock restarts.
+          // Without this the app keeps asking for a number the lifter just gave it.
+          ...(patch.heightCm !== undefined
+            ? { heightMeasuredAt: patch.heightMeasuredAt ?? new Date().toISOString() }
+            : {}),
+        },
+      };
+    }
 
     case 'updateSettings':
       return { ...state, settings: { ...state.settings, ...action.patch } };
@@ -256,8 +271,52 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...initialState };
 
     case 'import':
-      return action.state;
+      // Never trust a backup's shape. Anything missing falls back to the initial value,
+      // so a hand-edited or truncated file cannot leave the app in a state that throws
+      // on render — which, once persisted, would brick it on every subsequent launch.
+      return normalizeState(action.state);
   }
+}
+
+/** A profile the app can actually compute with, rather than one that yields NaN targets. */
+function isUsableProfile(profile: unknown): profile is Profile {
+  const p = profile as Profile | null;
+  return (
+    !!p &&
+    Number.isFinite(p.bodyweightKg) &&
+    Number.isFinite(p.heightCm) &&
+    Number.isFinite(p.age) &&
+    p.bodyweightKg > 0 &&
+    p.heightCm > 0
+  );
+}
+
+/**
+ * Coerces a loaded or imported blob into a state the app can render. Every field the UI
+ * dereferences without checking gets a guaranteed value, and references to programs this
+ * build does not have are dropped rather than left to throw inside `getProgram`.
+ */
+export function normalizeState(raw: Partial<AppState> | null | undefined): AppState {
+  const parsed = raw ?? {};
+  const profile = isUsableProfile(parsed.profile) ? parsed.profile : null;
+  const programId = parsed.programId && PROGRAM_MAP[parsed.programId] ? parsed.programId : null;
+  const active = parsed.active && PROGRAM_MAP[parsed.active.programId] ? parsed.active : null;
+
+  return {
+    ...initialState,
+    ...parsed,
+    version: STATE_VERSION,
+    profile,
+    // A program the lifter is not on cannot have a live session or a day cursor.
+    programId,
+    dayCursor: programId && Number.isFinite(parsed.dayCursor) ? Number(parsed.dayCursor) : 0,
+    active: programId ? active : null,
+    lifts: parsed.lifts && typeof parsed.lifts === 'object' ? parsed.lifts : {},
+    sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
+    bodyweightLog: Array.isArray(parsed.bodyweightLog) ? parsed.bodyweightLog : [],
+    handledPromotions: Array.isArray(parsed.handledPromotions) ? parsed.handledPromotions : [],
+    settings: { ...initialState.settings, ...parsed.settings },
+  };
 }
 
 export function load(): AppState {
@@ -266,7 +325,7 @@ export function load(): AppState {
     if (!raw) return initialState;
     const parsed = JSON.parse(raw) as AppState;
     if (parsed.version !== STATE_VERSION) return initialState;
-    return { ...initialState, ...parsed, settings: { ...initialState.settings, ...parsed.settings } };
+    return normalizeState(parsed);
   } catch {
     return initialState;
   }

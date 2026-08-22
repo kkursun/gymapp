@@ -97,13 +97,40 @@ describe('progression steps', () => {
 
   it('treats bodyweight movements as load-free', () => {
     const plank = lift({ exerciseId: 'plank', workingWeight: 0 });
-    const r = applyProgression(plank, [{ targetReps: 30, reps: 45, weight: 0, completed: true }], { sets: 3, reps: 30 });
+    const r = applyProgression(
+      plank,
+      Array.from({ length: 3 }, () => ({ targetReps: 30, reps: 45, weight: 0, completed: true })),
+      { sets: 3, reps: 30 },
+    );
     expect(r.nextWeight).toBe(0);
     expect(r.outcome).toBe('progressed');
   });
 
   it('ignores an empty set list rather than calling it a success', () => {
-    expect(isSessionSuccessful([])).toBe(false);
+    expect(isSessionSuccessful([], LINEAR)).toBe(false);
+  });
+
+  // Regression: a session cut short used to be judged on the handful of sets that were
+  // logged, so ticking one set of five added weight and banked a personal best.
+  it('does not judge a lift on a session that was cut short', () => {
+    const before = lift({ workingWeight: 60, consecutiveFailures: 1 });
+    const r = applyProgression(before, sets([5]), LINEAR);
+    expect(r.outcome).toBe('held');
+    expect(r.nextWeight).toBe(60);
+    expect(r.next.bestWeight).toBe(0);
+    expect(r.next.bestEstimated1RM).toBe(0);
+    expect(r.next.consecutiveFailures).toBe(1);
+    expect(r.message).toContain('1 of 5 sets');
+  });
+
+  it('needs every prescribed set, not just every logged one, to progress', () => {
+    expect(isSessionSuccessful(sets([5, 5, 5, 5]), LINEAR)).toBe(false);
+    expect(isSessionSuccessful(sets([5, 5, 5, 5, 5]), LINEAR)).toBe(true);
+  });
+
+  it('still deloads a lifter who does the work and misses the reps', () => {
+    const r = applyProgression(lift({ consecutiveFailures: 2 }), sets([4, 4, 4, 3, 3]), LINEAR);
+    expect(r.outcome).toBe('deloaded');
   });
 });
 

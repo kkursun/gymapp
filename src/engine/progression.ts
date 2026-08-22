@@ -24,9 +24,18 @@ export function isSetSuccessful(set: LoggedSet): boolean {
   return set.reps >= set.targetReps;
 }
 
-/** A lift only progresses when every prescribed rep was completed. */
-export function isSessionSuccessful(sets: LoggedSet[]): boolean {
-  return sets.length > 0 && sets.every(isSetSuccessful);
+/**
+ * Whether the lifter actually did the work the program asked for. Only sets they logged
+ * reach here, so a session cut short arrives as a short list — and a short list of good
+ * sets is not a completed session, however good those sets were.
+ */
+export function isSessionComplete(sets: LoggedSet[], scheme: SetScheme): boolean {
+  return sets.length >= scheme.sets;
+}
+
+/** A lift only progresses when every prescribed set hit every prescribed rep. */
+export function isSessionSuccessful(sets: LoggedSet[], scheme: SetScheme): boolean {
+  return isSessionComplete(sets, scheme) && sets.length > 0 && sets.every(isSetSuccessful);
 }
 
 /** Epley, capped at the rep range where the formula still means anything. */
@@ -76,7 +85,24 @@ export function applyProgression(
   const ex = getExercise(state.exerciseId);
   const weight = state.workingWeight;
   const target = currentTarget(state, scheme);
-  const success = isSessionSuccessful(sets);
+
+  // A session the lifter walked away from part-way through decides nothing. It is not a
+  // success — they did not do the prescribed work — and it is not a miss either, because
+  // they never failed a rep, so it must not count toward a deload or set a personal best.
+  if (!isSessionComplete(sets, scheme)) {
+    return {
+      next: state,
+      outcome: 'held',
+      nextWeight: weight,
+      nextReps: target,
+      // `state` already carries any weight the lifter set in the gym, which stands as
+      // their own decision. What is withheld is the verdict: no progression, no personal
+      // best, and no strike toward a deload.
+      message: `${sets.length} of ${scheme.sets} sets logged — too few to judge the lift, so nothing else changes. Same again next time.`,
+    };
+  }
+
+  const success = isSessionSuccessful(sets, scheme);
   const totalReps = sets.reduce((n, s) => n + s.reps, 0);
   const bestSetReps = sets.reduce((n, s) => Math.max(n, s.reps), 0);
 

@@ -93,7 +93,7 @@ measurements update your lean-mass estimate, which moves every strength target w
 | **Upper / Lower** | Barbell + accessories | 4 | Once 5×5 stops going up every session |
 | **Momentum** | Barbell + accessories | 4 | Once linear progression is finished for good — everything on rep ranges |
 
-All three are runnable in an ordinary commercial gym.
+All four are runnable in an ordinary commercial gym.
 
 ### Training days
 
@@ -109,7 +109,8 @@ not a decision made behind your back: Upper/Lower is one button away.
 ### How you get promoted
 
 - **Foundation → 5×5**: ~18 sessions or 6 weeks in, once you're using real weight on the
-  goblet squat. Never offered if your gym has no rack.
+  goblet squat — or, sooner, once you clear the novice standard on most of the lifts it
+  trains. Never offered if your gym has no rack.
 - **5×5 → Upper/Lower**: whichever comes first — three deloads across your main lifts
   (linear progression is genuinely finished), 60 sessions, or clearing the novice standard
   on most of the program's main lifts. Clearing the standards promotes you immediately;
@@ -141,6 +142,7 @@ Fast while it lasts, which for a novice is months.
 | Third consecutive miss | Deload to 90%, rounded to the plates you have |
 | Already at the lightest the lift goes | Hold — no pointless deload of an empty bar |
 | Exercise skipped or untouched | Nothing changes; it isn't counted as a failure |
+| Fewer sets logged than prescribed | Nothing changes — see *Finishing early* below |
 
 **Double progression** — a rep *range* (say 3×8–12), used for all accessory work, every
 bodyweight movement, and every lift in Momentum. Reps climb before weight does, so the
@@ -156,6 +158,14 @@ lift keeps advancing long after adding plates every session has stopped working.
 
 Override the weight in the gym and the app judges what you actually lifted, not what it
 planned for you.
+
+### Finishing early
+
+Life happens, so "Finish early" saves the session as it stands. What it does *not* do is
+judge your lifts on it: a lift you logged three sets of out of five is left exactly where
+it was — no added weight, no personal best, and no strike against it either, because you
+didn't miss any reps. The session is still logged, and the rotation still advances. A
+standard only counts as cleared on a weight you completed *every prescribed set* at.
 
 ## Also in the box
 

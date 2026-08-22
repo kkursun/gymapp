@@ -1,7 +1,13 @@
 import { useMemo, useState } from 'react';
 import { getExercise } from '../data/exercises';
 import { getProgram } from '../data/programs';
-import { clearedStandards, describeStandardProgress, standardProgress } from '../engine/graduation';
+import {
+  clearedStandards,
+  describeStandardProgress,
+  promotesOnStandards,
+  standardProgress,
+  standardsNeeded,
+} from '../engine/graduation';
 import { isLoaded } from '../engine/starting';
 import { fmt } from '../engine/progression';
 import { readBody } from '../engine/body';
@@ -56,6 +62,11 @@ export function Progress() {
 
   const standards = useMemo(() => standardProgress(state, profile), [state, profile]);
   const cleared = useMemo(() => clearedStandards(state, profile), [state, profile]);
+  // Both come from the graduation engine: a hardcoded number here promised a Foundation
+  // lifter an upgrade one standard before the engine would actually offer it.
+  const needed = standardsNeeded(state);
+  const remaining = Math.max(0, needed - cleared.length);
+  const promotes = promotesOnStandards(state);
 
   const stalled = useMemo(
     () => Object.values(state.lifts).filter((l) => l.deloads > 0 || l.consecutiveFailures > 0),
@@ -132,11 +143,11 @@ export function Progress() {
         })}
         <div className="divider" />
         <p className="small muted" style={{ marginBottom: 0 }}>
-          {cleared.length >= 3
-            ? 'Cleared. Your upgrade is waiting on the Train tab.'
-            : `Counts weight you have actually completed every rep at, not what is loaded next session. Clear ${
-                3 - cleared.length
-              } more and the app moves you up.`}
+          {!promotes
+            ? `Counts weight you have actually completed every rep at, not what is loaded next session. On ${program.name} these track how far you have come rather than deciding when you move on.`
+            : remaining === 0
+              ? 'Cleared. Your upgrade is waiting on the Train tab.'
+              : `Counts weight you have actually completed every rep at, not what is loaded next session. Clear ${remaining} more of these ${needed} and the app moves you up.`}
         </p>
       </Card>
 

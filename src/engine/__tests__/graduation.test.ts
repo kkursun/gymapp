@@ -4,6 +4,8 @@ import {
   checkPromotion,
   clearedStandards,
   describeStandardProgress,
+  promotesOnStandards,
+  standardsNeeded,
 } from '../graduation';
 import { buildLiftStates, startingWeight } from '../starting';
 import { initialState } from '../../store/state';
@@ -220,5 +222,56 @@ describe('clearing the novice standard', () => {
       s.lifts[id] = { ...s.lifts[id], bestWeight: 10_000 };
     }
     expect(checkPromotion(s)?.to.id).toBe('strength-5x5');
+  });
+});
+
+// The Progress screen used to hardcode "clear 3 more", which was right on 5×5 and wrong
+// everywhere else — it promised a Foundation lifter an upgrade a whole standard early.
+describe('the standards gate the UI reports', () => {
+  const on = (programId: string): AppState => ({
+    ...initialState,
+    profile,
+    programId,
+    lifts: buildLiftStates(profile, programId),
+  });
+
+  it('scales with how many main lifts the program actually trains', () => {
+    expect(standardsNeeded(on('foundation'))).toBe(4);
+    expect(standardsNeeded(on('strength-5x5'))).toBe(3);
+    expect(standardsNeeded(on('upper-lower'))).toBe(7);
+  });
+
+  it('never asks for fewer than two', () => {
+    expect(standardsNeeded({ ...initialState, profile })).toBe(2);
+  });
+
+  it('knows which programs clearing them will actually move you off', () => {
+    expect(promotesOnStandards(on('foundation'))).toBe(true);
+    expect(promotesOnStandards(on('strength-5x5'))).toBe(true);
+    expect(promotesOnStandards(on('upper-lower'))).toBe(false);
+    expect(promotesOnStandards(on('momentum'))).toBe(false);
+    expect(promotesOnStandards(initialState)).toBe(false);
+  });
+
+  it('is the exact number the engine promotes on', () => {
+    // Clear one fewer than the screen asks for: no offer. Clear the number it asks for:
+    // the offer appears. If these ever drift apart the screen is lying again.
+    const base = stateOn('strength-5x5', 6);
+    const needed = standardsNeeded(base);
+    const mains = ['squat', 'bench', 'row', 'ohp', 'deadlift'];
+
+    const short = { ...base, lifts: { ...base.lifts } };
+    for (const id of mains.slice(0, needed - 1)) {
+      short.lifts[id] = { ...short.lifts[id], bestWeight: 10_000 };
+    }
+    expect(clearedStandards(short, profile)).toHaveLength(needed - 1);
+    expect(checkPromotion(short)).toBeNull();
+
+    const met = { ...base, lifts: { ...base.lifts } };
+    for (const id of mains.slice(0, needed)) {
+      met.lifts[id] = { ...met.lifts[id], bestWeight: 10_000 };
+    }
+    expect(clearedStandards(met, profile)).toHaveLength(needed);
+    expect(checkPromotion(met)?.to.id).toBe('upper-lower');
   });
 });

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { getExercise } from '../data/exercises';
 import { getProgram } from '../data/programs';
 import { groupPlates, platesFor } from '../engine/plates';
-import { applyProgression, fmt, isSessionSuccessful } from '../engine/progression';
+import { applyProgression, fmt } from '../engine/progression';
 import { useStore } from '../store/StoreContext';
 import { Card, Pill, Sheet } from '../components/ui';
 import { RestTimer } from '../components/RestTimer';
@@ -218,7 +218,6 @@ export function Workout({ onDone }: { onDone: () => void }) {
           key={rest.key}
           seconds={rest.seconds}
           sound={state.settings.sound}
-          onDone={() => undefined}
           onDismiss={() => setRest(null)}
         />
       )}
@@ -318,9 +317,9 @@ function SessionSummary({
     };
   });
 
-  const wins = active.exercises.filter(
-    (ex) => ex.outcome !== 'skipped' && ex.sets.some((s) => s.completed) && isSessionSuccessful(ex.sets.filter((s) => s.completed)),
-  ).length;
+  // Counted off the preview rather than recomputed, so the headline can never disagree
+  // with the per-lift verdicts printed directly underneath it.
+  const wins = preview.filter((p) => p.tone === 'good').length;
 
   return (
     <Sheet onClose={onCancel}>
