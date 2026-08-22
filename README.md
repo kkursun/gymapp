@@ -16,7 +16,8 @@ answers both and keeps answering them as you get stronger:
    program plus a starting weight for every lift.
 2. **Every session** you tap the sets you completed. Hit all your reps and the weight goes
    up next time. Miss them and it repeats. Miss three sessions running and it deloads 10%
-   so you can build back with clean reps.
+   so you can build back with clean reps. Warm-up sets are worked out for you, and any
+   lift can be swapped for one that trains the same thing.
 3. **When a program runs out of road**, the app notices and offers you the next one,
    carrying your weights across.
 
@@ -157,9 +158,45 @@ lift keeps advancing long after adding plates every session has stopped working.
 Override the weight in the gym and the app judges what you actually lifted, not what it
 planned for you.
 
+## Warm-up sets
+
+The big lifts get a ramp: the empty bar, then roughly 55%, 75% and 90% of the working
+weight for 5, 3 and 2 reps. It is generated rather than written into the program, because
+it depends both on the weight you are on today and on the plates your gym owns.
+
+Warm-ups are kept apart from the sets that count and are **never shown to the progression
+engine** — missing a ramp-up set is not a failed session, and skipping the ramp entirely
+never costs you weight. Isolation work and bodyweight movements get no ramp, and neither
+does anything already close to the lightest load the equipment makes: there is nothing to
+warm up to. Turn the whole thing off in Settings.
+
+## Swapping exercises
+
+Two versions of the same problem. The machine you need is occupied, so you want something
+else *today*; or your gym simply does not own it, and you want it gone for good.
+
+- **In the session** — *Swap* on any lift offers everything that trains the same movement.
+- **For good** — *Settings → Exercise swaps* replaces a lift everywhere in the program.
+
+Every exercise declares a movement pattern, and only lifts sharing that pattern (or a
+compatible one — the two pull patterns are interchangeable, as are a hinge and a leg curl)
+are offered. A loaded lift is never swapped for a bodyweight one, because the two progress
+by different rules and the program's set scheme is written for one or the other.
+
+The program data itself is never rewritten. A swap is a lens over it, so it survives a
+program change, and undoing it loses nothing: the weight you built up stays attached to
+whichever lift earned it. New lifts are seeded from what you are already lifting rather
+than from a beginner's first session.
+
 ## Also in the box
 
 - **Plate calculator** — what to hang on each end, using only the plates your gym owns.
+- **Weights you can actually load** — every prescribed weight, from your first session to
+  every progression step and deload, is rounded to something your bar and plates can build.
+  Turn off the 1.25kg pair and the app steps the bar 5kg at a time instead of prescribing a
+  weight that cannot be made.
+- **Best lifts** — your heaviest set of each lift, converted to an estimated 1RM.
+- **Session notes** — anything worth remembering, kept with the session.
 - **Rest timer** — wall-clock anchored so it survives the screen sleeping, with a beep and
   a vibrate.
 - **Form cues** on every exercise, plus notes specific to your build (long femurs, short
@@ -167,6 +204,8 @@ planned for you.
 - **Progress charts** — working weight per lift, bodyweight, and how close each main lift
   is to your personal novice standard.
 - **Export / import** your data as JSON. It only lives on this device, so take a backup.
+  Backups are validated and migrated on the way in, and a state the app cannot read is
+  parked rather than overwritten.
 
 ## Installing it on your phone
 
@@ -194,12 +233,17 @@ installed — for that you need the HTTPS URL above.
 Your data lives in that browser's storage. It does not follow you between the installed
 app and the browser tab, or to another phone — use *Settings → Export* to move it.
 
+Upgrades do not wipe it. Stored data carries a version and is migrated forward on load; a
+state written by a *newer* build than the one running is left alone and parked where an
+export can still reach it, rather than being replaced with a blank slate.
+
 ## Development
 
 ```bash
 npm install
 npm run dev        # dev server
-npm test           # 80 tests over the progression, graduation and check-in engines
+npm test           # 199 tests over the progression, graduation, warm-up,
+                   # substitution, plate and check-in engines
 npm run build      # generates icons, typechecks, bundles to dist/
 npm run preview    # serve the production build
 ```
@@ -210,8 +254,9 @@ npm run preview    # serve the production build
 src/
   data/        exercises and the three programs — pure data
   engine/      the parts worth trusting: body metrics, starting weights,
-               progression, graduation, check-ins, plate maths
-  store/       reducer + localStorage persistence
+               progression, graduation, check-ins, plate maths, warm-up
+               ramps, exercise substitution
+  store/       reducer + localStorage persistence, with versioned migrations
   screens/     onboarding, home, workout, progress, history, settings, promotion
   components/  shared UI, chart, rest timer, check-in card
 ```

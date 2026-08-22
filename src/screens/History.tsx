@@ -63,6 +63,11 @@ export function History() {
                           ? 'skipped'
                           : `${fmt(ex.weight)}kg · ${ex.sets.map((s) => s.reps).join(' · ')}`}
                       </div>
+                      {ex.sourceExerciseId && (
+                        <div className="small muted">
+                          swapped in for {getExercise(ex.sourceExerciseId).name}
+                        </div>
+                      )}
                     </div>
                     <Pill
                       tone={ex.outcome === 'progressed' ? 'good' : ex.outcome === 'deloaded' ? 'warn' : undefined}
@@ -71,6 +76,12 @@ export function History() {
                     </Pill>
                   </div>
                 ))}
+                {session.notes && (
+                  <div className="notebox">
+                    <div className="tiny">Notes</div>
+                    <p className="small" style={{ margin: '4px 0 0' }}>{session.notes}</p>
+                  </div>
+                )}
                 <button
                   className="btn btn--ghost btn--danger btn--block small"
                   style={{ marginTop: 12 }}

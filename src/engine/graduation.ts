@@ -2,6 +2,8 @@ import { getProgram, PROGRAM_MAP } from '../data/programs';
 import { getExercise } from '../data/exercises';
 import type { AppState, Profile, Program } from '../types';
 import { targetFiveRepMax } from './starting';
+import { programExerciseIds } from './substitution';
+import type { Substitutions } from './substitution';
 
 export interface Promotion {
   /** Stable key so a dismissed offer is not shown again. */
@@ -21,10 +23,12 @@ export interface Promotion {
  * them, so a fixed list left a Foundation lifter permanently unable to clear a standard.
  * Accessories and bodyweight holds are excluded — they are not what a program is judged on.
  */
-function mainLiftsOf(state: AppState): string[] {
+export function mainLiftsOf(state: AppState): string[] {
   if (!state.programId) return [];
   const program = getProgram(state.programId);
-  const ids = new Set(program.days.flatMap((d) => d.slots.map((slot) => slot.exerciseId)));
+  // Read through any permanent substitution: a lifter who swapped the leg press for a
+  // goblet squat is judged on the lift they are actually doing.
+  const ids = new Set(programExerciseIds(program, state.substitutions));
   return [...ids].filter((id) => {
     const loadType = getExercise(id).loadType;
     return loadType === 'lower' || loadType === 'upper';
@@ -32,8 +36,40 @@ function mainLiftsOf(state: AppState): string[] {
 }
 
 /** How many of a program's main lifts must clear the standard for it to be outgrown. */
-function clearedThreshold(mainCount: number): number {
+export function clearedThreshold(mainCount: number): number {
   return Math.max(2, Math.ceil(mainCount * 0.6));
+}
+
+/**
+ * Programs whose graduation can be triggered by clearing the novice standards.
+ *
+ * The later programs are not on this list, and that is the point: Upper/Lower graduates
+ * on stalling rather than on standards, and Momentum has nowhere to graduate to at all.
+ * The Progress screen reads this so it only promises a promotion the engine can deliver
+ * — it used to tell every lifter on every program to "clear 3 more", which was wrong on
+ * three programs out of four and unachievable on two of them.
+ */
+export const STANDARD_GATED_PROGRAMS = new Set(['foundation', 'strength-5x5']);
+
+export interface PromotionOutlook {
+  /** How many main lifts must clear their standard on this program. */
+  threshold: number;
+  cleared: number;
+  /** Whether clearing standards actually promotes the lifter from here. */
+  gatedOnStandards: boolean;
+  /** Whether there is a further program at all. */
+  hasNext: boolean;
+}
+
+/** What clearing the standards will and will not do for the lifter, on this program. */
+export function promotionOutlook(state: AppState, profile: Profile): PromotionOutlook {
+  const program = state.programId ? getProgram(state.programId) : null;
+  return {
+    threshold: clearedThreshold(mainLiftsOf(state).length),
+    cleared: clearedStandards(state, profile).length,
+    gatedOnStandards: !!program && STANDARD_GATED_PROGRAMS.has(program.id),
+    hasNext: !!program && program.graduatesTo.length > 0,
+  };
 }
 
 function sessionsOn(state: AppState, programId: string): number {
@@ -179,9 +215,10 @@ export function carryOverWeights(
   lifts: AppState['lifts'],
   toProgramId: string,
   seed: (exerciseId: string) => number,
+  substitutions: Substitutions = {},
 ): AppState['lifts'] {
   const to = getProgram(toProgramId);
-  const ids = new Set(to.days.flatMap((d) => d.slots.map((s) => s.exerciseId)));
+  const ids = new Set(programExerciseIds(to, substitutions));
   const next: AppState['lifts'] = {};
 
   for (const id of ids) {
@@ -189,8 +226,8 @@ export function carryOverWeights(
     if (existing) {
       next[id] = {
         ...existing,
-        // A fresh program deserves a fresh run-up: back off slightly and reset the
-        // failure counters so the new rep scheme is not judged against the old one.
+        // The weight carries over untouched. Only the failure counter is cleared, so the
+        // new program's rep scheme is not judged against the one before it.
         consecutiveFailures: 0,
       };
       continue;

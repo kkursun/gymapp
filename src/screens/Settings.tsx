@@ -1,19 +1,24 @@
-import { useState } from 'react';
-import { PROGRAMS } from '../data/programs';
+import { useMemo, useState } from 'react';
+import { getProgram, PROGRAMS } from '../data/programs';
+import { getExercise } from '../data/exercises';
 import { readBody } from '../engine/body';
 import { fmt } from '../engine/progression';
+import { programExerciseIds, substitutesFor } from '../engine/substitution';
 import { useStore } from '../store/StoreContext';
-import { Card, Sheet, Stepper } from '../components/ui';
-import { STORAGE_KEY } from '../store/state';
+import { Card, Pill, Sheet, Stepper } from '../components/ui';
+import { migrate, STORAGE_KEY } from '../store/state';
 
 export function Settings() {
   const { state, dispatch } = useStore();
   const profile = state.profile!;
   const body = readBody(profile);
   const [switching, setSwitching] = useState(false);
+  const [swaps, setSwaps] = useState(false);
   const [editBody, setEditBody] = useState(false);
   const [height, setHeight] = useState(profile.heightCm);
   const [weight, setWeight] = useState(profile.bodyweightKg);
+
+  const substitutionCount = Object.keys(state.substitutions).length;
 
   const exportData = () => {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
@@ -28,9 +33,15 @@ export function Settings() {
   const importData = (file: File) => {
     file.text().then((text) => {
       try {
-        const parsed = JSON.parse(text);
-        if (!parsed.version || !parsed.lifts) throw new Error('not an Ironpath backup');
-        dispatch({ type: 'import', state: parsed });
+        // Validate the shape and run it through the same migrations as stored state,
+        // rather than dropping whatever the file happens to contain into the reducer.
+        const restored = migrate(JSON.parse(text));
+        if (!restored) {
+          throw new Error(
+            'this is not an Ironpath backup, or it was written by a newer version of the app',
+          );
+        }
+        dispatch({ type: 'import', state: restored });
         alert('Backup restored.');
       } catch (e) {
         alert(`Could not read that file: ${(e as Error).message}`);
@@ -62,6 +73,20 @@ export function Settings() {
         </p>
         <button className="btn btn--block" onClick={() => setSwitching(true)}>
           Switch program
+        </button>
+      </Card>
+
+      <div className="section-title">
+        <h2 style={{ margin: 0 }}>Exercise swaps</h2>
+        {substitutionCount > 0 ? <Pill tone="accent">{substitutionCount}</Pill> : null}
+      </div>
+      <Card>
+        <p className="small muted">
+          If your gym does not have something, swap it for a lift that trains the same movement.
+          Your program keeps working — only the exercise changes.
+        </p>
+        <button className="btn btn--block" onClick={() => setSwaps(true)}>
+          {substitutionCount > 0 ? 'Manage swaps' : 'Swap an exercise'}
         </button>
       </Card>
 
@@ -106,6 +131,27 @@ export function Settings() {
             })}
           </div>
           <p className="hint">Turn off what your gym doesn't have — the plate calculator uses this.</p>
+        </div>
+      </Card>
+
+      <div className="section-title"><h2 style={{ margin: 0 }}>Warm-up sets</h2></div>
+      <Card>
+        <div className="row">
+          <div style={{ paddingRight: 12 }}>
+            <span className="small">Ramp up to the working weight</span>
+            <p className="hint" style={{ margin: '4px 0 0' }}>
+              A few progressively heavier sets before the sets that count, on the compound lifts
+              only. They are never judged for progression — missing one is not a failed session.
+            </p>
+          </div>
+          <button
+            className="choice"
+            style={{ width: 'auto', padding: '8px 16px', flexShrink: 0 }}
+            aria-pressed={state.settings.warmups}
+            onClick={() => dispatch({ type: 'updateSettings', patch: { warmups: !state.settings.warmups } })}
+          >
+            {state.settings.warmups ? 'On' : 'Off'}
+          </button>
         </div>
       </Card>
 
@@ -239,7 +285,12 @@ export function Settings() {
             <button
               className="btn btn--primary"
               onClick={() => {
-                dispatch({ type: 'updateProfile', patch: { heightCm: height } });
+                // Stamping the measurement date is what stops the app asking for a height
+                // it was just given.
+                dispatch({
+                  type: 'updateProfile',
+                  patch: { heightCm: height, heightMeasuredAt: new Date().toISOString() },
+                });
                 if (weight !== profile.bodyweightKg) dispatch({ type: 'logBodyweight', kg: weight });
                 setEditBody(false);
               }}
@@ -249,6 +300,8 @@ export function Settings() {
           </div>
         </Sheet>
       )}
+
+      {swaps && <SwapManager onClose={() => setSwaps(false)} />}
 
       {switching && (
         <Sheet onClose={() => setSwitching(false)}>
@@ -307,5 +360,111 @@ export function Settings() {
         Ironpath v1.0 · {Object.keys(state.lifts).length} lifts tracked
       </p>
     </div>
+  );
+}
+
+
+/**
+ * Permanent exercise swaps. The in-session version on the workout screen covers "the
+ * machine is busy today"; this one covers "my gym does not own that", which needs to
+ * stick across every future session.
+ */
+function SwapManager({ onClose }: { onClose: () => void }) {
+  const { state, dispatch } = useStore();
+  const profile = state.profile!;
+  const program = getProgram(state.programId!);
+  const [picking, setPicking] = useState<string | null>(null);
+
+  // One row per lift the program prescribes, paired with whatever currently stands in.
+  const rows = useMemo(() => {
+    const prescribed = [
+      ...new Set(program.days.flatMap((d) => d.slots.map((s) => s.exerciseId))),
+    ];
+    return prescribed.map((id) => ({ id, replacement: state.substitutions[id] }));
+  }, [program, state.substitutions]);
+
+  const options = useMemo(() => {
+    if (!picking) return [];
+    // Exclude everything else the program already trains, so a swap cannot put the same
+    // lift into a day twice.
+    const inUse = programExerciseIds(program, state.substitutions).filter(
+      (id) => id !== (state.substitutions[picking] ?? picking),
+    );
+    return substitutesFor(picking, { hasRack: profile.hasRack, exclude: inUse });
+  }, [picking, program, state.substitutions, profile.hasRack]);
+
+  if (picking) {
+    const current = state.substitutions[picking];
+    return (
+      <Sheet onClose={() => setPicking(null)}>
+        <h2>Instead of {getExercise(picking).name}</h2>
+        <p className="small muted">
+          Every option trains the same movement pattern. Your starting weight is estimated from
+          what you already lift.
+        </p>
+        <div className="stack">
+          {current && (
+            <button
+              className="choice"
+              onClick={() => {
+                dispatch({ type: 'restoreExercise', exerciseId: picking });
+                setPicking(null);
+              }}
+            >
+              <div className="choice-title">{getExercise(picking).name}</div>
+              <div className="choice-sub">Go back to the prescribed lift</div>
+            </button>
+          )}
+          {options.length === 0 ? (
+            <p className="small muted">
+              Nothing else in the exercise list trains this movement the same way.
+            </p>
+          ) : (
+            options.map((option) => (
+              <button
+                key={option.id}
+                className="choice"
+                aria-pressed={option.id === current}
+                onClick={() => {
+                  dispatch({ type: 'setSubstitution', from: picking, to: option.id });
+                  setPicking(null);
+                }}
+              >
+                <div className="choice-title">{option.name}</div>
+                <div className="choice-sub">{option.cues[0]}</div>
+              </button>
+            ))
+          )}
+        </div>
+        <button className="btn btn--block" style={{ marginTop: 16 }} onClick={() => setPicking(null)}>
+          Cancel
+        </button>
+      </Sheet>
+    );
+  }
+
+  return (
+    <Sheet onClose={onClose}>
+      <h2>Exercise swaps</h2>
+      <p className="small muted">
+        Tap a lift to replace it everywhere in {program.name}. Weights you have already built up
+        stay with the lift they belong to, so undoing a swap loses nothing.
+      </p>
+      <div className="stack">
+        {rows.map(({ id, replacement }) => (
+          <button key={id} className="choice" onClick={() => setPicking(id)}>
+            <div className="choice-title">
+              {replacement ? getExercise(replacement).name : getExercise(id).name}
+            </div>
+            <div className="choice-sub">
+              {replacement ? `instead of ${getExercise(id).name}` : 'as prescribed'}
+            </div>
+          </button>
+        ))}
+      </div>
+      <button className="btn btn--block" style={{ marginTop: 16 }} onClick={onClose}>
+        Done
+      </button>
+    </Sheet>
   );
 }

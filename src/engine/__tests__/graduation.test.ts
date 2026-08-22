@@ -4,8 +4,10 @@ import {
   checkPromotion,
   clearedStandards,
   describeStandardProgress,
+  mainLiftsOf,
+  promotionOutlook,
 } from '../graduation';
-import { buildLiftStates, startingWeight } from '../starting';
+import { buildLiftStates, startingWeight, targetFiveRepMax } from '../starting';
 import { initialState } from '../../store/state';
 import type { AppState, Profile, Session } from '../../types';
 
@@ -220,5 +222,54 @@ describe('clearing the novice standard', () => {
       s.lifts[id] = { ...s.lifts[id], bestWeight: 10_000 };
     }
     expect(checkPromotion(s)?.to.id).toBe('strength-5x5');
+  });
+});
+
+describe('promotionOutlook', () => {
+  const base = (programId: string): AppState => ({
+    ...initialState,
+    profile,
+    programId,
+    lifts: buildLiftStates(profile, programId),
+  });
+
+  it('reports the real threshold, which differs by program', () => {
+    // The Progress screen used to hardcode 3 for every program. It is only 3 on 5x5.
+    expect(promotionOutlook(base('strength-5x5'), profile).threshold).toBe(3);
+    expect(promotionOutlook(base('foundation'), profile).threshold).toBe(4);
+    expect(promotionOutlook(base('upper-lower'), profile).threshold).toBe(7);
+  });
+
+  it('only claims standards promote the lifter where they actually do', () => {
+    expect(promotionOutlook(base('foundation'), profile).gatedOnStandards).toBe(true);
+    expect(promotionOutlook(base('strength-5x5'), profile).gatedOnStandards).toBe(true);
+    // Upper/Lower graduates on stalling, not on standards.
+    expect(promotionOutlook(base('upper-lower'), profile).gatedOnStandards).toBe(false);
+    expect(promotionOutlook(base('momentum'), profile).gatedOnStandards).toBe(false);
+  });
+
+  it('knows when there is no next program at all', () => {
+    expect(promotionOutlook(base('strength-5x5'), profile).hasNext).toBe(true);
+    expect(promotionOutlook(base('momentum'), profile).hasNext).toBe(false);
+  });
+
+  it('agrees with the promotion engine on 5x5', () => {
+    // If the outlook says the standards are cleared, checkPromotion must actually offer
+    // the upgrade — the two used to disagree, promising a promotion that never came.
+    let state = base('strength-5x5');
+    const lifts = { ...state.lifts };
+    for (const id of Object.keys(lifts)) {
+      lifts[id] = { ...lifts[id], bestWeight: targetFiveRepMax(profile, id) };
+    }
+    state = { ...state, lifts };
+    const outlook = promotionOutlook(state, profile);
+    expect(outlook.cleared).toBeGreaterThanOrEqual(outlook.threshold);
+    expect(checkPromotion(state)).not.toBeNull();
+  });
+
+  it('counts substituted lifts as the program lifts they replaced', () => {
+    const state = { ...base('strength-5x5'), substitutions: { bench: 'chest-press-machine' } };
+    expect(mainLiftsOf(state)).toContain('chest-press-machine');
+    expect(mainLiftsOf(state)).not.toContain('bench');
   });
 });

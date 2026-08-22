@@ -1,6 +1,7 @@
 import { getExercise } from '../data/exercises';
-import type { LiftState, LoadType, LoggedSet, SetScheme } from '../types';
-import { roundToIncrement } from './plates';
+import type { Exercise, LiftState, LoadType, LoggedSet, SetScheme } from '../types';
+import { noSnap, roundToIncrement } from './plates';
+import type { LoadSnapper } from './plates';
 
 /** Sessions in a row you may miss a lift before the app pulls the weight back. */
 export const FAILURES_BEFORE_DELOAD = 3;
@@ -72,6 +73,12 @@ export function applyProgression(
   state: LiftState,
   sets: LoggedSet[],
   scheme: SetScheme,
+  /**
+   * Rounds a proposed weight to one the lifter's bar and plates can actually make. The
+   * direction matters: a step up must clear the target (or the lift would never move on
+   * a gym missing its small plates), a deload must land at or under it.
+   */
+  snap: LoadSnapper = noSnap,
 ): ProgressionResult {
   const ex = getExercise(state.exerciseId);
   const weight = state.workingWeight;
@@ -105,7 +112,7 @@ export function applyProgression(
 
     // Top of the range reached. Add weight and reset the reps, if there is weight to add.
     if (ranged && loadable) {
-      const nextWeight = roundToIncrement(weight + step, ex.increment);
+      const nextWeight = snap(roundToIncrement(weight + step, ex.increment), ex, 'up');
       return {
         next: {
           ...base,
@@ -134,13 +141,13 @@ export function applyProgression(
 
     // Plain linear progression.
     if (loadable) {
-      const nextWeight = roundToIncrement(weight + step, ex.increment);
+      const nextWeight = snap(roundToIncrement(weight + step, ex.increment), ex, 'up');
       return {
         next: { ...base, workingWeight: nextWeight, consecutiveFailures: 0 },
         outcome: 'progressed',
         nextWeight,
         nextReps: target,
-        message: `All reps — next time ${fmt(nextWeight)}kg (+${fmt(step)}).`,
+        message: `All reps — next time ${fmt(nextWeight)}kg (+${fmt(nextWeight - weight)}).`,
       };
     }
 
@@ -170,7 +177,10 @@ export function applyProgression(
     }
 
     if (loadable) {
-      const deloaded = Math.max(ex.minLoad, roundToIncrement(weight * DELOAD_FRACTION, ex.increment));
+      const deloaded = Math.max(
+        ex.minLoad,
+        snap(roundToIncrement(weight * DELOAD_FRACTION, ex.increment), ex, 'down'),
+      );
       // A deload that cannot actually reduce the weight (already at the bar) is pointless.
       if (deloaded < weight) {
         return {
@@ -218,9 +228,9 @@ export function applyProgression(
   };
 }
 
-/** Planks are logged in seconds; everything else in reps. */
-function unit(ex: { loadType: LoadType }): string {
-  return ex.loadType === 'bodyweight' ? 's' : ' reps';
+/** Holds are logged in seconds; everything else in reps. */
+function unit(ex: Pick<Exercise, 'unit'>): string {
+  return ex.unit === 'seconds' ? 's' : ' reps';
 }
 
 /** Blank set list for a lift about to be performed. */
@@ -229,7 +239,7 @@ export function buildSets(scheme: SetScheme, weight: number, targetReps?: number
   return Array.from({ length: scheme.sets }, () => ({
     targetReps: reps,
     reps,
-    weight: roundToIncrement(weight * (scheme.loadFactor ?? 1), 0.5),
+    weight,
     completed: false,
   }));
 }

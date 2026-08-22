@@ -8,14 +8,17 @@ export function LineChart({
   series,
   height = 150,
   format = (v: number) => String(Math.round(v)),
+  emptyLabel = 'Not enough sessions yet — this fills in after a couple of workouts.',
 }: {
   series: { label: string; color: string; points: Point[] }[];
   height?: number;
   format?: (v: number) => string;
+  /** What this chart is waiting for. The bodyweight chart waits on weigh-ins, not sessions. */
+  emptyLabel?: string;
 }) {
   const all = series.flatMap((s) => s.points);
   if (all.length < 2) {
-    return <p className="small muted">Not enough sessions yet — this fills in after a couple of workouts.</p>;
+    return <p className="small muted">{emptyLabel}</p>;
   }
 
   const pad = { l: 34, r: 8, t: 10, b: 18 };

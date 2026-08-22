@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { getExercise } from '../data/exercises';
 import { getProgram } from '../data/programs';
-import { clearedStandards, describeStandardProgress, standardProgress } from '../engine/graduation';
+import { describeStandardProgress, promotionOutlook, standardProgress } from '../engine/graduation';
 import { isLoaded } from '../engine/starting';
+import { programExerciseIds } from '../engine/substitution';
 import { fmt } from '../engine/progression';
 import { readBody } from '../engine/body';
 import { useStore } from '../store/StoreContext';
@@ -19,10 +20,10 @@ export function Progress() {
   const [weighIn, setWeighIn] = useState(false);
   const [newWeight, setNewWeight] = useState(profile.bodyweightKg);
 
-  const trackedIds = useMemo(() => {
-    const ids = new Set(program.days.flatMap((d) => d.slots.map((s) => s.exerciseId)));
-    return [...ids].filter(isLoaded);
-  }, [program]);
+  const trackedIds = useMemo(
+    () => programExerciseIds(program, state.substitutions).filter(isLoaded),
+    [program, state.substitutions],
+  );
 
   // One point per session per lift, oldest first.
   const strengthSeries = useMemo(() => {
@@ -55,7 +56,16 @@ export function Progress() {
   );
 
   const standards = useMemo(() => standardProgress(state, profile), [state, profile]);
-  const cleared = useMemo(() => clearedStandards(state, profile), [state, profile]);
+  const outlook = useMemo(() => promotionOutlook(state, profile), [state, profile]);
+
+  /** Heaviest estimated one-rep max per lift — tracked every session, worth showing. */
+  const bests = useMemo(
+    () =>
+      Object.values(state.lifts)
+        .filter((l) => l.bestEstimated1RM > 0)
+        .sort((a, b) => b.bestEstimated1RM - a.bestEstimated1RM),
+    [state.lifts],
+  );
 
   const stalled = useMemo(
     () => Object.values(state.lifts).filter((l) => l.deloads > 0 || l.consecutiveFailures > 0),
@@ -132,13 +142,45 @@ export function Progress() {
         })}
         <div className="divider" />
         <p className="small muted" style={{ marginBottom: 0 }}>
-          {cleared.length >= 3
-            ? 'Cleared. Your upgrade is waiting on the Train tab.'
-            : `Counts weight you have actually completed every rep at, not what is loaded next session. Clear ${
-                3 - cleared.length
-              } more and the app moves you up.`}
+          Counts weight you have actually completed every rep at, not what is loaded next session.{' '}
+          {outlook.gatedOnStandards
+            ? outlook.cleared >= outlook.threshold
+              ? 'Cleared. Your upgrade is waiting on the Train tab.'
+              : `Clear ${outlook.threshold - outlook.cleared} more of these ${
+                  outlook.threshold === 1 ? 'lift' : 'lifts'
+                } and the app moves you up.`
+            : outlook.hasNext
+              ? 'On this program the app moves you up when adding weight stops working, rather than at a standard — these are here to show how far you have come.'
+              : 'This is the last program, so there is nothing to graduate to — double progression keeps generating new targets indefinitely.'}
         </p>
       </Card>
+
+      {bests.length > 0 && (
+        <>
+          <div className="section-title">
+            <h2 style={{ margin: 0 }}>Best lifts</h2>
+            <span className="small muted">estimated 1RM</span>
+          </div>
+          <Card>
+            <p className="small muted">
+              Your heaviest set of each lift, converted to a one-rep max with the Epley formula. An
+              estimate from real reps, not a max you have to test.
+            </p>
+            {bests.map((l) => (
+              <div className="liftrow" key={l.exerciseId}>
+                <div className="lift-name">
+                  <div>{getExercise(l.exerciseId).name}</div>
+                  <div className="small muted num">
+                    best set {fmt(l.bestWeight)}kg
+                    {l.bestReps ? ` × ${l.bestReps}` : ''}
+                  </div>
+                </div>
+                <span className="lift-weight num">{fmt(Math.round(l.bestEstimated1RM))}kg</span>
+              </div>
+            ))}
+          </Card>
+        </>
+      )}
 
       <div className="section-title">
         <h2 style={{ margin: 0 }}>Bodyweight</h2>
@@ -147,7 +189,12 @@ export function Progress() {
         </button>
       </div>
       <Card>
-        <LineChart series={bodySeries} height={120} format={(v) => v.toFixed(1)} />
+        <LineChart
+          series={bodySeries}
+          height={120}
+          format={(v) => v.toFixed(1)}
+          emptyLabel="One weigh-in so far — the trend line starts after your second."
+        />
         <p className="small muted" style={{ marginTop: 10, marginBottom: 0 }}>
           Weighing in updates your lean-mass estimate, which moves your strength targets with you.
         </p>

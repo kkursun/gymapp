@@ -24,12 +24,10 @@ function beep() {
 export function RestTimer({
   seconds,
   sound,
-  onDone,
   onDismiss,
 }: {
   seconds: number;
   sound: boolean;
-  onDone: () => void;
   onDismiss: () => void;
 }) {
   // Anchor to wall-clock time: setInterval drifts badly when the phone screen sleeps.
@@ -51,7 +49,6 @@ export function RestTimer({
         fired.current = true;
         if (sound) beep();
         if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
-        onDone();
       }
     };
     const id = setInterval(tick, 250);
@@ -60,7 +57,10 @@ export function RestTimer({
       clearInterval(id);
       document.removeEventListener('visibilitychange', tick);
     };
-  }, [sound, onDone]);
+    // Only `sound` matters here. The timer used to take an `onDone` callback, which the
+    // caller re-created on every render, tearing down and rebuilding this interval once a
+    // second for the whole workout.
+  }, [sound]);
 
   const mm = Math.floor(left / 60);
   const ss = String(left % 60).padStart(2, '0');

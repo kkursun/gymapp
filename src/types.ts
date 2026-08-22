@@ -6,6 +6,26 @@ export type MuscleGroup = 'legs' | 'chest' | 'back' | 'shoulders' | 'arms' | 'co
 /** Which lever the load sits on — decides the size of a progression step. */
 export type LoadType = 'lower' | 'upper' | 'accessory' | 'bodyweight';
 export type Equipment = 'barbell' | 'dumbbell' | 'machine' | 'cable' | 'bodyweight';
+/**
+ * What the movement actually does, which is what makes two lifts interchangeable. Two
+ * exercises sharing a pattern (or a compatible one — see engine/substitution.ts) train
+ * the same thing, so one can stand in for the other when a machine is occupied or a gym
+ * simply does not have it.
+ */
+export type MovementPattern =
+  | 'squat'
+  | 'hinge'
+  | 'hamstring'
+  | 'horizontal-push'
+  | 'vertical-push'
+  | 'horizontal-pull'
+  | 'vertical-pull'
+  | 'shoulder-isolation'
+  | 'elbow-flexion'
+  | 'elbow-extension'
+  | 'core';
+/** Reps for almost everything; seconds for holds like the plank. */
+export type RepUnit = 'reps' | 'seconds';
 
 export interface Exercise {
   id: string;
@@ -13,6 +33,10 @@ export interface Exercise {
   loadType: LoadType;
   equipment: Equipment;
   primary: MuscleGroup;
+  /** What the movement trains, which decides what may be swapped in for it. */
+  pattern: MovementPattern;
+  /** Holds are logged in seconds. Absent means reps. */
+  unit?: RepUnit;
   /** How this lift's novice standard is derived — see engine/standards.ts. */
   standard: StandardSource;
   /** Smallest weight change the gym's hardware allows, in kg. */
@@ -37,8 +61,6 @@ export interface SetScheme {
   maxReps?: number;
   /** Reps added per successful session. Planks count seconds, so they move in fives. */
   repStep?: number;
-  /** Fraction of the working weight, for warm-up-style back-off sets. */
-  loadFactor?: number;
 }
 
 export interface ProgramSlot {
@@ -106,11 +128,24 @@ export interface LoggedSet {
   reps: number;
   weight: number;
   completed: boolean;
+  /**
+   * Set when the lifter typed the rep count in rather than tapping the set done. Ticking
+   * a set off fills in the target reps; re-ticking one that was logged short must not
+   * quietly overwrite what actually happened.
+   */
+  manual?: boolean;
 }
 
 export interface LoggedExercise {
   exerciseId: string;
+  /**
+   * The program slot this filled, when the lifter swapped the prescribed lift for
+   * something else. The scheme still comes from the original slot.
+   */
+  sourceExerciseId?: string;
   weight: number;
+  /** Ramp-up sets. Never judged for progression — they exist to warm the lift up. */
+  warmups?: LoggedSet[];
   sets: LoggedSet[];
   /** Progression verdict, resolved when the session was finished. */
   outcome: 'progressed' | 'held' | 'deloaded' | 'skipped';
@@ -154,11 +189,18 @@ export interface AppState {
   handledPromotions: string[];
   /** Set when the lifter defers a measurement check-in. */
   checkInSnoozedUntil?: string;
+  /**
+   * Permanent exercise swaps, keyed by the exercise the program prescribes. Applied
+   * wherever the program's slots are read, so a gym without a leg press stays usable.
+   */
+  substitutions: Record<string, string>;
   settings: {
     barKg: number;
     plates: number[];
     restSecMain: number;
     restSecAccessory: number;
     sound: boolean;
+    /** Ramp-up sets before the working sets on the big lifts. */
+    warmups: boolean;
   };
 }

@@ -1,9 +1,11 @@
 import { getExercise } from '../data/exercises';
 import { getProgram, PROGRAMS } from '../data/programs';
+import { programExerciseIds } from './substitution';
 import type { LiftState, Profile, Program } from '../types';
 import { clamp, bmiBand, bmi, readBody } from './body';
 import { noviceOneRepMax, oneRepMaxToReps } from './standards';
-import { floorToIncrement } from './plates';
+import { floorToIncrement, noSnap } from './plates';
+import type { LoadSnapper } from './plates';
 
 /**
  * The novice-standard 5RM this lifter is being aimed at, from their lean mass and age.
@@ -26,7 +28,11 @@ export function isLoaded(exerciseId: string): boolean {
  * learning the movement, and starting under your capacity is how linear progression buys
  * you months of easy gains instead of two weeks of them.
  */
-export function startingWeight(profile: Profile, exerciseId: string): number {
+export function startingWeight(
+  profile: Profile,
+  exerciseId: string,
+  snap: LoadSnapper = noSnap,
+): number {
   const ex = getExercise(exerciseId);
   const target = targetFiveRepMax(profile, exerciseId);
   if (target === 0) return 0;
@@ -39,17 +45,24 @@ export function startingWeight(profile: Profile, exerciseId: string): number {
   if (body.band === 'under') weight *= 0.9;
   if (body.band === 'high') weight *= 0.92;
 
-  weight = floorToIncrement(weight, ex.increment);
+  // Round down to a load the gym can actually make — starting a beginner at a weight
+  // their plates cannot build is the same bug as prescribing one mid-program.
+  weight = snap(floorToIncrement(weight, ex.increment), ex, 'down');
   // Never below what the hardware can even make, and never above the standard itself.
   return clamp(weight, ex.minLoad, Math.max(ex.minLoad, target));
 }
 
-export function buildLiftStates(profile: Profile, programId: string): Record<string, LiftState> {
+export function buildLiftStates(
+  profile: Profile,
+  programId: string,
+  snap: LoadSnapper = noSnap,
+  substitutions: Record<string, string> = {},
+): Record<string, LiftState> {
   const program = getProgram(programId);
-  const ids = new Set(program.days.flatMap((d) => d.slots.map((s) => s.exerciseId)));
+  const ids = new Set(programExerciseIds(program, substitutions));
   const lifts: Record<string, LiftState> = {};
   for (const id of ids) {
-    const weight = startingWeight(profile, id);
+    const weight = startingWeight(profile, id, snap);
     lifts[id] = {
       exerciseId: id,
       workingWeight: weight,
@@ -92,18 +105,19 @@ export function seedNewLift(
   lifts: Record<string, LiftState>,
   profile: Profile,
   exerciseId: string,
+  snap: LoadSnapper = noSnap,
 ): number {
   const ex = getExercise(exerciseId);
   if (!isLoaded(exerciseId)) return 0;
 
   const ratio = strengthRatio(lifts, profile);
-  if (ratio === 0) return startingWeight(profile, exerciseId);
+  if (ratio === 0) return startingWeight(profile, exerciseId, snap);
 
   const target = targetFiveRepMax(profile, exerciseId);
   // Cap the multiplier: past roughly double the novice standard the lifter is no longer
   // a novice at all, and extrapolating further stops being safe.
   const weight = target * clamp(ratio, 0.3, 2) * 0.6;
-  return clamp(floorToIncrement(weight, ex.increment), ex.minLoad, target);
+  return clamp(snap(floorToIncrement(weight, ex.increment), ex, 'down'), ex.minLoad, target);
 }
 
 export interface ProgramRecommendation {

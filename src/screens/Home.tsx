@@ -4,7 +4,8 @@ import { getProgram } from '../data/programs';
 import { checkPromotion } from '../engine/graduation';
 import { describeReps, fmt } from '../engine/progression';
 import { platesFor, groupPlates } from '../engine/plates';
-import { currentDay } from '../store/state';
+import { currentDay, currentSlots } from '../store/state';
+import { resolveSlots } from '../engine/substitution';
 import { useStore } from '../store/StoreContext';
 import { Card, Pill } from '../components/ui';
 import { CheckInCard } from '../components/CheckInCard';
@@ -27,6 +28,8 @@ export function Home({ onPromotion }: { onPromotion: () => void }) {
   const profile = state.profile!;
   const program = getProgram(state.programId!);
   const day = currentDay(state)!;
+  // Read the day through any permanent swaps, so Home shows the lifts actually trained.
+  const slots = currentSlots(state);
   const promotion = useMemo(() => checkPromotion(state), [state]);
 
   const thisWeek = weeklyCount(state.sessions.map((s) => s.date));
@@ -66,7 +69,7 @@ export function Home({ onPromotion }: { onPromotion: () => void }) {
         </div>
         <h2 style={{ marginBottom: 12 }}>{day.name}</h2>
 
-        {day.slots.map((slot) => {
+        {slots.map((slot) => {
           const ex = getExercise(slot.exerciseId);
           const lift = state.lifts[slot.exerciseId];
           const weight = lift?.workingWeight ?? 0;
@@ -80,7 +83,7 @@ export function Home({ onPromotion }: { onPromotion: () => void }) {
                 <div>{ex.name}</div>
                 <div className="small muted num">
                   {slot.scheme.sets} × {describeReps(slot.scheme, lift?.workingReps)}
-                  {ex.loadType === 'bodyweight' ? (slot.exerciseId === 'plank' ? ' sec' : ' reps') : ''}
+                  {ex.loadType === 'bodyweight' ? (ex.unit === 'seconds' ? ' sec' : ' reps') : ''}
                   {load && load.perSide.length > 0
                     ? ` · ${groupPlates(load.perSide)
                         .map((g) => (g.count > 1 ? `${g.count}×${fmt(g.plate)}` : fmt(g.plate)))
@@ -132,7 +135,9 @@ export function Home({ onPromotion }: { onPromotion: () => void }) {
               <div className="lift-name">
                 <div style={{ fontWeight: upcoming ? 700 : 500 }}>{d.name}</div>
                 <div className="small muted">
-                  {d.slots.map((slot) => getExercise(slot.exerciseId).name).join(' · ')}
+                  {resolveSlots(d, state.substitutions)
+                    .map((slot) => getExercise(slot.exerciseId).name)
+                    .join(' · ')}
                 </div>
               </div>
               {upcoming ? (

@@ -1,4 +1,4 @@
-import type { LoadType, Profile, Sex } from '../types';
+import type { LoadType, Profile } from '../types';
 import { leanBodyMass } from './body';
 
 /**
@@ -135,6 +135,3 @@ export function oneRepMaxToReps(oneRm: number, reps: number): number {
   return oneRm / (1 + Math.min(reps, 12) / 30);
 }
 
-export function sexOf(profile: Profile): Sex {
-  return profile.sex;
-}
