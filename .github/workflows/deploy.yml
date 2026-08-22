@@ -1,10 +1,9 @@
 # Tests and builds the app, then publishes it to GitHub Pages so it can be installed
 # on a phone. A PWA is only offered for installation over HTTPS, which Pages provides.
 #
-# NOTE: Pages must be switched on once by a repo admin, under
-# Settings -> Pages -> Source: "GitHub Actions". The workflow token is not permitted to
-# create a Pages site itself, so until that is done the `deploy` job below fails with
-# "Not Found" while `build` still passes.
+# Pages is enabled and deploying from the default branch. Every branch gets the full
+# build-and-test treatment; only the default branch publishes, because Pages serves one
+# site and a second branch deploying to it would simply overwrite the first.
 name: Deploy to GitHub Pages
 
 on:
@@ -51,6 +50,11 @@ jobs:
 
   deploy:
     needs: build
+    # The `github-pages` environment only accepts deployments from the default branch, so
+    # on any other branch this job is rejected before it runs a single step — a red cross
+    # that says nothing about the code. Skip it instead: a feature branch is then green
+    # when `build` proves it healthy, and merging is what publishes.
+    if: github.ref_name == github.event.repository.default_branch
     runs-on: ubuntu-latest
     environment:
       name: github-pages
