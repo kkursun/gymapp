@@ -2,16 +2,18 @@ import { useEffect, useState } from 'react';
 import { getExercise } from '../data/exercises';
 import { getProgram } from '../data/programs';
 import { groupPlates, platesFor } from '../engine/plates';
-import { applyProgression, fmt, isSessionSuccessful } from '../engine/progression';
+import { applyProgression, extraOnlyResult, fmt, isSessionSuccessful } from '../engine/progression';
 import { useStore } from '../store/StoreContext';
-import { Card, Pill, Sheet } from '../components/ui';
+import { Card, Pill, Sheet, Stepper } from '../components/ui';
+import { LiftEntrySheet, isTimed } from '../components/LiftEntry';
 import { RestTimer } from '../components/RestTimer';
 import type { LoggedSet } from '../types';
 
 function setClass(set: LoggedSet): string {
-  if (!set.completed) return 'setbtn';
-  if (set.reps >= set.targetReps) return 'setbtn setbtn--done';
-  return 'setbtn setbtn--partial';
+  const manual = set.manual ? ' setbtn--manual' : '';
+  if (!set.completed) return `setbtn${manual}`;
+  if (set.reps >= set.targetReps) return `setbtn setbtn--done${manual}`;
+  return `setbtn setbtn--partial${manual}`;
 }
 
 export function Workout({ onDone }: { onDone: () => void }) {
@@ -22,6 +24,7 @@ export function Workout({ onDone }: { onDone: () => void }) {
   const [startedAt] = useState(() => +new Date(active.startedAt));
   const [rest, setRest] = useState<{ seconds: number; key: number } | null>(null);
   const [editing, setEditing] = useState<{ ex: number; set: number } | null>(null);
+  const [adding, setAdding] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [summary, setSummary] = useState(false);
 
@@ -86,9 +89,9 @@ export function Workout({ onDone }: { onDone: () => void }) {
       <Card variant="flush">
         {active.exercises.map((ex, exIndex) => {
           const meta = getExercise(ex.exerciseId);
-          const slot = day.slots.find((s) => s.exerciseId === ex.exerciseId)!;
-          const done = ex.sets.every((s) => s.completed);
-          const isTime = ex.exerciseId === 'plank';
+          const slot = day.slots.find((s) => s.exerciseId === ex.exerciseId);
+          const done = ex.sets.length > 0 && ex.sets.every((s) => s.completed);
+          const isTime = isTimed(ex.exerciseId);
           const load =
             meta.equipment === 'barbell' ? platesFor(ex.weight, state.settings.barKg, state.settings.plates) : null;
           const nextSet = ex.sets.findIndex((s) => !s.completed);
@@ -100,9 +103,12 @@ export function Workout({ onDone }: { onDone: () => void }) {
             >
               <div className="exercise-head">
                 <div>
-                  <div className="exercise-name">{meta.name}</div>
+                  <div className="exercise-name">
+                    {meta.name}
+                    {ex.adhoc ? <span className="tag">added</span> : null}
+                  </div>
                   <div className="exercise-target num">
-                    {slot.scheme.sets} × {ex.sets[0]?.targetReps ?? slot.scheme.reps}
+                    {ex.sets.length} × {ex.sets[0]?.targetReps ?? slot?.scheme.reps ?? 0}
                     {isTime ? ' sec' : ''}
                     {meta.loadType !== 'bodyweight' ? ` @ ${fmt(ex.weight)}kg` : ''}
                     {meta.equipment === 'dumbbell' ? ' each' : ''}
@@ -162,13 +168,21 @@ export function Workout({ onDone }: { onDone: () => void }) {
                       </button>
                     ))}
                   </div>
-                  <div className="row" style={{ marginTop: 10 }}>
+                  <div className="row" style={{ marginTop: 10, gap: 12 }}>
                     <button
                       className="btn btn--ghost small"
                       style={{ padding: '6px 0' }}
                       onClick={() => setEditing({ ex: exIndex, set: Math.max(0, nextSet === -1 ? ex.sets.length - 1 : nextSet) })}
+                      disabled={ex.sets.length === 0}
                     >
-                      Missed reps?
+                      Edit reps
+                    </button>
+                    <button
+                      className="btn btn--ghost small"
+                      style={{ padding: '6px 0' }}
+                      onClick={() => dispatch({ type: 'addSet', exerciseIndex: exIndex })}
+                    >
+                      + Add set
                     </button>
                     <button
                       className="btn btn--ghost small muted"
@@ -192,6 +206,10 @@ export function Workout({ onDone }: { onDone: () => void }) {
           );
         })}
       </Card>
+
+      <button className="btn btn--block" style={{ marginTop: 10 }} onClick={() => setAdding(true)}>
+        + Add a lift
+      </button>
 
       <button
         className="btn btn--primary btn--block btn--lg"
@@ -220,6 +238,17 @@ export function Workout({ onDone }: { onDone: () => void }) {
           sound={state.settings.sound}
           onDone={() => undefined}
           onDismiss={() => setRest(null)}
+        />
+      )}
+
+      {adding && (
+        <LiftEntrySheet
+          title="Add a lift"
+          intro="Anything you did on top of the program. Tick the sets off as you go."
+          confirmLabel="Add to session"
+          exclude={active.exercises.map((e) => e.exerciseId)}
+          onConfirm={(entry) => dispatch({ type: 'addExercise', ...entry })}
+          onClose={() => setAdding(false)}
         />
       )}
 
@@ -252,35 +281,70 @@ function RepEditor({
   const ex = state.active!.exercises[exerciseIndex];
   const meta = getExercise(ex.exerciseId);
   const set = ex.sets[setIndex];
-  const isTime = ex.exerciseId === 'plank';
+  const isTime = isTimed(ex.exerciseId);
+  const [custom, setCustom] = useState(set.reps);
+  // Quick picks around the target, but the stepper below takes any number: a set of 25
+  // push-ups or a three-minute plank has to be loggable too.
   const options = isTime
     ? [0, 10, 15, 20, 25, 30, 40, 45, 60, 75, 90]
     : Array.from({ length: set.targetReps + 4 }, (_, i) => i);
 
+  const log = (reps: number) => {
+    dispatch({ type: 'setReps', exerciseIndex, setIndex, reps });
+    // Logging a short set still finishes a set, so it still starts the rest.
+    onLogged(ex.exerciseId);
+    onClose();
+  };
+
   return (
     <Sheet onClose={onClose}>
-      <h2>{meta.name} — set {setIndex + 1}</h2>
+      <h2>
+        {meta.name} — set {setIndex + 1}
+        {set.manual ? <span className="tag">added</span> : null}
+      </h2>
       <p className="small muted">
-        How many {isTime ? 'seconds' : 'reps'} did you actually get at {fmt(ex.weight)}kg? Target is{' '}
-        {set.targetReps}.
+        How many {isTime ? 'seconds' : 'reps'} did you actually get
+        {meta.loadType === 'bodyweight' ? '' : ` at ${fmt(ex.weight)}kg`}? Target is {set.targetReps}
+        {set.manual ? ' — an added set, so it will not count against the lift' : ''}.
       </p>
       <div className="setgrid">
         {options.map((n) => (
           <button
             key={n}
             className={`setbtn${n === set.reps && set.completed ? ' setbtn--active' : ''}`}
-            onClick={() => {
-              dispatch({ type: 'setReps', exerciseIndex, setIndex, reps: n });
-              // Logging a short set still finishes a set, so it still starts the rest.
-              onLogged(ex.exerciseId);
-              onClose();
-            }}
+            onClick={() => log(n)}
           >
             {n}
           </button>
         ))}
       </div>
-      <button className="btn btn--block" style={{ marginTop: 16 }} onClick={onClose}>
+
+      <div className="tiny" style={{ marginTop: 18 }}>Or enter it exactly</div>
+      <Stepper
+        value={custom}
+        onChange={setCustom}
+        step={isTime ? 5 : 1}
+        min={0}
+        max={600}
+        suffix={isTime ? 'sec' : 'reps'}
+      />
+      <button className="btn btn--primary btn--block" style={{ marginTop: 12 }} onClick={() => log(custom)}>
+        Log {custom} {isTime ? 'sec' : 'reps'}
+      </button>
+
+      {set.manual && (
+        <button
+          className="btn btn--ghost btn--danger btn--block small"
+          style={{ marginTop: 10 }}
+          onClick={() => {
+            dispatch({ type: 'removeSet', exerciseIndex, setIndex });
+            onClose();
+          }}
+        >
+          Remove this set
+        </button>
+      )}
+      <button className="btn btn--block" style={{ marginTop: 10 }} onClick={onClose}>
         Cancel
       </button>
     </Sheet>
@@ -305,12 +369,18 @@ function SessionSummary({
     const meta = getExercise(ex.exerciseId);
     const performed = ex.sets.filter((s) => s.completed);
     const lift = state.lifts[ex.exerciseId];
-    if (ex.outcome === 'skipped' || performed.length === 0 || !lift) {
+    if (ex.outcome === 'skipped' || performed.length === 0) {
       return { name: meta.name, message: 'Not logged — no change.', tone: undefined as 'good' | 'warn' | undefined };
     }
+    if (!lift) {
+      // A lift the program has never given them: recorded, with nothing to progress yet.
+      const total = performed.reduce((n, s) => n + s.reps, 0);
+      return { name: meta.name, message: `${total} logged as extra work.`, tone: undefined as 'good' | 'warn' | undefined };
+    }
     const scheme = day.slots.find((s) => s.exerciseId === ex.exerciseId)?.scheme;
-    if (!scheme) return { name: meta.name, message: 'Logged.', tone: undefined as 'good' | 'warn' | undefined };
-    const result = applyProgression({ ...lift, workingWeight: ex.weight }, performed, scheme);
+    const result = scheme
+      ? applyProgression({ ...lift, workingWeight: ex.weight }, performed, scheme)
+      : extraOnlyResult(lift, undefined, performed);
     return {
       name: meta.name,
       message: result.message,

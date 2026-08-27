@@ -24,9 +24,10 @@ export function Progress() {
     return [...ids].filter(isLoaded);
   }, [program]);
 
-  // One point per session per lift, oldest first.
+  // One point per session per lift, oldest first. Extra lifts are excluded: the line
+  // tracks the weight the program is working at, which off-program work does not move.
   const strengthSeries = useMemo(() => {
-    const ordered = [...state.sessions].reverse();
+    const ordered = [...state.sessions].filter((s) => s.kind !== 'extra').reverse();
     return (
       trackedIds
         .map((id) => ({

@@ -24,9 +24,19 @@ export function isSetSuccessful(set: LoggedSet): boolean {
   return set.reps >= set.targetReps;
 }
 
+/**
+ * The sets the program asked for. Anything the lifter added themselves is excluded: a
+ * fourth set taken to failure is training, not evidence that the prescribed three were
+ * missed, so it must not be allowed to hold a lift back.
+ */
+export function prescribedSets(sets: LoggedSet[]): LoggedSet[] {
+  return sets.filter((s) => !s.manual);
+}
+
 /** A lift only progresses when every prescribed rep was completed. */
 export function isSessionSuccessful(sets: LoggedSet[]): boolean {
-  return sets.length > 0 && sets.every(isSetSuccessful);
+  const prescribed = prescribedSets(sets);
+  return prescribed.length > 0 && prescribed.every(isSetSuccessful);
 }
 
 /** Epley, capped at the rep range where the formula still means anything. */
@@ -76,14 +86,19 @@ export function applyProgression(
   const ex = getExercise(state.exerciseId);
   const weight = state.workingWeight;
   const target = currentTarget(state, scheme);
+  // Every set banks records; only the prescribed ones decide the verdict.
+  const judged = prescribedSets(sets);
   const success = isSessionSuccessful(sets);
-  const totalReps = sets.reduce((n, s) => n + s.reps, 0);
-  const bestSetReps = sets.reduce((n, s) => Math.max(n, s.reps), 0);
+  const totalReps = judged.reduce((n, s) => n + s.reps, 0);
 
-  const best1RM = Math.max(state.bestEstimated1RM, estimate1RM(weight, bestSetReps));
   const bestWeight = success ? Math.max(state.bestWeight, weight) : state.bestWeight;
-  const bestReps = Math.max(state.bestReps ?? 0, bestSetReps);
-  const base = { ...state, bestWeight, bestEstimated1RM: best1RM, bestReps };
+  const base = { ...bankRecords(state, sets), bestWeight };
+
+  // Nothing prescribed was logged — extra sets alone. Bank them and leave the lift
+  // exactly where it was: no progression to earn, and no miss to punish.
+  if (judged.length === 0) {
+    return extraOnlyResult(base, scheme, sets);
+  }
 
   const step = stepFor(ex.loadType, ex.increment);
   const loadable = step > 0;
@@ -218,6 +233,41 @@ export function applyProgression(
   };
 }
 
+/**
+ * Fold a set list into the lift's records without judging it. Used for sets the lifter
+ * added themselves and for lifts logged outside the program, where there is no
+ * prescription to hit or miss but the effort still counts toward a best.
+ */
+export function bankRecords(state: LiftState, sets: LoggedSet[]): LiftState {
+  const best1RM = sets.reduce(
+    (n, s) => Math.max(n, estimate1RM(s.weight, s.reps)),
+    state.bestEstimated1RM,
+  );
+  const bestReps = sets.reduce((n, s) => Math.max(n, s.reps), state.bestReps ?? 0);
+  return { ...state, bestEstimated1RM: best1RM, bestReps };
+}
+
+/**
+ * The verdict for a lift where only extra sets were logged — including one the lifter
+ * added that the program never prescribed at all.
+ */
+export function extraOnlyResult(
+  state: LiftState,
+  scheme: SetScheme | undefined,
+  sets: LoggedSet[],
+): ProgressionResult {
+  const banked = bankRecords(state, sets);
+  const totalReps = sets.reduce((n, s) => n + s.reps, 0);
+  const ex = getExercise(state.exerciseId);
+  return {
+    next: banked,
+    outcome: 'held',
+    nextWeight: banked.workingWeight,
+    nextReps: scheme ? currentTarget(banked, scheme) : (banked.workingReps ?? 0),
+    message: `${totalReps}${unit(ex)} logged as extra work — nothing prescribed, so nothing changes.`,
+  };
+}
+
 /** Planks are logged in seconds; everything else in reps. */
 function unit(ex: { loadType: LoadType }): string {
   return ex.loadType === 'bodyweight' ? 's' : ' reps';
@@ -232,6 +282,11 @@ export function buildSets(scheme: SetScheme, weight: number, targetReps?: number
     weight: roundToIncrement(weight * (scheme.loadFactor ?? 1), 0.5),
     completed: false,
   }));
+}
+
+/** One set the lifter added themselves, at the weight currently on the bar. */
+export function manualSet(reps: number, weight: number, completed = false): LoggedSet {
+  return { targetReps: reps, reps, weight, completed, manual: true };
 }
 
 export function fmt(n: number): string {

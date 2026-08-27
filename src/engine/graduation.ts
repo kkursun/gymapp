@@ -36,12 +36,20 @@ function clearedThreshold(mainCount: number): number {
   return Math.max(2, Math.ceil(mainCount * 0.6));
 }
 
+/**
+ * Program sessions only. Lifts logged off-program are real training, but a week of
+ * curls in the garage is not evidence that a program has been outgrown.
+ */
+function programSessions(state: AppState, programId: string) {
+  return state.sessions.filter((s) => s.programId === programId && s.kind !== 'extra');
+}
+
 function sessionsOn(state: AppState, programId: string): number {
-  return state.sessions.filter((s) => s.programId === programId).length;
+  return programSessions(state, programId).length;
 }
 
 function weeksOn(state: AppState, programId: string): number {
-  const dates = state.sessions.filter((s) => s.programId === programId).map((s) => +new Date(s.date));
+  const dates = programSessions(state, programId).map((s) => +new Date(s.date));
   if (dates.length < 2) return 0;
   return (Math.max(...dates) - Math.min(...dates)) / (1000 * 60 * 60 * 24 * 7);
 }

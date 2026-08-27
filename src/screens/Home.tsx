@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { getExercise } from '../data/exercises';
 import { getProgram } from '../data/programs';
 import { checkPromotion } from '../engine/graduation';
@@ -8,6 +8,7 @@ import { currentDay } from '../store/state';
 import { useStore } from '../store/StoreContext';
 import { Card, Pill } from '../components/ui';
 import { CheckInCard } from '../components/CheckInCard';
+import { LiftEntrySheet } from '../components/LiftEntry';
 
 function daysAgo(iso: string): string {
   const diff = Math.floor((Date.now() - +new Date(iso)) / 86400000);
@@ -16,7 +17,7 @@ function daysAgo(iso: string): string {
   return `${diff} days ago`;
 }
 
-/** Sessions in the last 7 days vs. the program's target. */
+/** Program sessions in the last 7 days vs. the program's target. */
 function weeklyCount(dates: string[]): number {
   const cutoff = Date.now() - 7 * 86400000;
   return dates.filter((d) => +new Date(d) >= cutoff).length;
@@ -29,8 +30,12 @@ export function Home({ onPromotion }: { onPromotion: () => void }) {
   const day = currentDay(state)!;
   const promotion = useMemo(() => checkPromotion(state), [state]);
 
-  const thisWeek = weeklyCount(state.sessions.map((s) => s.date));
+  const [logExtra, setLogExtra] = useState(false);
+  // Extra lifts are training, but they are not one of the program's sessions.
+  const thisWeek = weeklyCount(state.sessions.filter((s) => s.kind !== 'extra').map((s) => s.date));
   const last = state.sessions[0];
+  // The "last session" card is about the rotation, so an extra lift is not one.
+  const lastProgram = state.sessions.find((s) => s.kind !== 'extra');
 
   return (
     <div className="screen">
@@ -114,6 +119,21 @@ export function Home({ onPromotion }: { onPromotion: () => void }) {
         </button>
       </Card>
 
+      <Card>
+        <div className="row">
+          <div>
+            <div style={{ fontWeight: 650 }}>Did something else?</div>
+            <div className="small muted">
+              Log a lift you did outside the program. It goes in your history and your
+              records, and leaves the rotation where it is.
+            </div>
+          </div>
+        </div>
+        <button className="btn btn--block" style={{ marginTop: 12 }} onClick={() => setLogExtra(true)}>
+          + Log an extra lift
+        </button>
+      </Card>
+
       <div className="section-title">
         <h2 style={{ margin: 0 }}>Your week</h2>
         <span className="small muted">{program.daysPerWeek} sessions, in order</span>
@@ -147,19 +167,29 @@ export function Home({ onPromotion }: { onPromotion: () => void }) {
         })}
       </Card>
 
-      {last && (
+      {logExtra && (
+        <LiftEntrySheet
+          title="Log an extra lift"
+          intro="Something you did outside the program — pick the lift and say what you managed."
+          confirmLabel="Log it"
+          onConfirm={(entry) => dispatch({ type: 'logExtraLift', ...entry })}
+          onClose={() => setLogExtra(false)}
+        />
+      )}
+
+      {lastProgram && (
         <>
           <div className="section-title">
             <h2 style={{ margin: 0 }}>Last session</h2>
-            <span className="small muted">{daysAgo(last.date)}</span>
+            <span className="small muted">{daysAgo(lastProgram.date)}</span>
           </div>
           <Card>
-            {last.exercises.map((ex) => {
+            {lastProgram.exercises.map((ex, i) => {
               const meta = getExercise(ex.exerciseId);
               const tone =
                 ex.outcome === 'progressed' ? 'good' : ex.outcome === 'deloaded' ? 'warn' : undefined;
               return (
-                <div className="liftrow" key={ex.exerciseId}>
+                <div className="liftrow" key={`${ex.exerciseId}-${i}`}>
                   <div className="lift-name">
                     <div>{meta.name}</div>
                     <div className="small muted num">

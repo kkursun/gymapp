@@ -146,6 +146,24 @@ p { margin: 0 0 12px; }
 .setbtn--done { background: var(--good-soft); border-color: var(--good); color: var(--good); }
 .setbtn--partial { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
 .setbtn--active { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+/* A set the lifter added themselves, so it reads as theirs rather than the program's. */
+.setbtn--manual { border-style: dashed; border-color: var(--muted); }
+.setbtn--manual.setbtn--done { border-color: var(--good); }
+.setbtn--manual.setbtn--partial { border-color: var(--warn); }
+
+/* ---------- lift picker ---------- */
+.picker { max-height: 46vh; overflow-y: auto; margin-top: 6px; -webkit-overflow-scrolling: touch; }
+.pickrow {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  width: 100%; text-align: left; padding: 11px 12px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--surface-2); margin-bottom: 6px;
+  font-size: 15px; font-weight: 550;
+}
+.tag {
+  margin-left: 7px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em;
+  text-transform: uppercase; padding: 2px 6px; border-radius: 5px; vertical-align: 2px;
+  background: var(--accent-soft); color: var(--accent);
+}
 
 .plates { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; align-items: center; }
 .plate-chip {
@@ -202,6 +220,8 @@ p { margin: 0 0 12px; }
 .liftrow:last-child { border-bottom: none; }
 .liftrow .lift-name { flex: 1; min-width: 0; }
 .liftrow .lift-weight { font-weight: 700; font-variant-numeric: tabular-nums; }
+.liftrow--tappable { width: 100%; text-align: left; }
+.liftrow--tappable:disabled { opacity: 0.55; }
 
 /* ---------- chart ---------- */
 .chart { width: 100%; height: 150px; display: block; overflow: visible; }

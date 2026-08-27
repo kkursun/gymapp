@@ -20,6 +20,10 @@ answers both and keeps answering them as you get stronger:
 3. **When a program runs out of road**, the app notices and offers you the next one,
    carrying your weights across.
 
+Anything you do on top of the program — an extra set, a lift it never asked for, a session
+in the garage — can be logged by hand. It counts toward your records without ever being
+allowed to hold a lift back. See [Logging what you actually did](#logging-what-you-actually-did).
+
 ## How the numbers are derived
 
 Starting weights are not a generic chart. Each lift's target is computed from four terms,
@@ -156,6 +160,42 @@ lift keeps advancing long after adding plates every session has stopped working.
 
 Override the weight in the gym and the app judges what you actually lifted, not what it
 planned for you.
+
+## Logging what you actually did
+
+The program prescribes; it does not police. Everything below is entered by hand, and none
+of it can be entered wrongly enough to break the progression.
+
+- **Extra sets** — *+ Add set* on any lift adds a set beyond the prescription. It is drawn
+  with a dashed border and marked as yours.
+- **Any rep number** — the rep sheet keeps its quick grid around the target, and adds a
+  stepper underneath for numbers the grid does not reach: a set of 25 push-ups, a
+  three-minute plank.
+- **A lift the program never asked for** — *+ Add a lift* mid-session pulls anything from
+  the exercise library onto the card. Outside a session, *+ Log an extra lift* on the home
+  screen records work done elsewhere; a day's worth collects into one entry in History.
+- **Corrections** — tap any lift inside a past session in History to fix the reps you
+  logged.
+
+**How hand-logged work is treated.** It counts toward your records — best set, estimated
+1RM — and toward total volume, but only the sets the *program* prescribed decide whether a
+lift goes up, holds, or deloads:
+
+| | Counts for records | Decides progression |
+| --- | --- | --- |
+| Prescribed sets | yes | yes |
+| Extra sets you added | yes | no |
+| A lift you added yourself | yes | no — there is no prescription to hit |
+| Corrections in History | no — the weights were already decided | no |
+
+The asymmetry is deliberate. A fourth set taken to failure is training, not evidence that
+the first three were missed, so it can never turn a completed session into a miss or push
+a lift toward a deload. For the same reason an extra set cannot claim a personal-best
+*weight*: that is reserved for a session actually completed at that load.
+
+Lifts logged outside the rotation are real training, but they are not program sessions.
+They do not advance the day rotation, count toward the weekly target, or feed graduation —
+a fortnight of curls in the garage is not evidence that 5×5 has been outgrown.
 
 ## Also in the box
 

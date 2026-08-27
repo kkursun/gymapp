@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyProgression,
+  bankRecords,
   buildSets,
   currentTarget,
   describeReps,
   estimate1RM,
   isSessionSuccessful,
+  manualSet,
+  prescribedSets,
   stepFor,
 } from '../progression';
 import type { LiftState, LoggedSet, SetScheme } from '../../types';
@@ -104,6 +107,66 @@ describe('progression steps', () => {
 
   it('ignores an empty set list rather than calling it a success', () => {
     expect(isSessionSuccessful([])).toBe(false);
+  });
+});
+
+describe('sets the lifter added by hand', () => {
+  it('progresses the lift even when an extra set falls well short', () => {
+    // Five clean prescribed sets, then a sixth taken to failure. That is a good session.
+    const r = applyProgression(lift(), [...sets([5, 5, 5, 5, 5]), manualSet(2, 60, true)], LINEAR);
+    expect(r.outcome).toBe('progressed');
+    expect(r.nextWeight).toBe(65);
+    expect(r.next.consecutiveFailures).toBe(0);
+  });
+
+  it('still fails a session whose prescribed sets were missed, extra sets or not', () => {
+    const r = applyProgression(lift(), [...sets([5, 5, 5, 5, 3]), manualSet(8, 60, true)], LINEAR);
+    expect(r.outcome).toBe('held');
+    expect(r.next.consecutiveFailures).toBe(1);
+  });
+
+  it('banks records from an extra set', () => {
+    const r = applyProgression(lift(), [...sets([5, 5, 5, 5, 5]), manualSet(12, 60, true)], LINEAR);
+    expect(r.next.bestReps).toBe(12);
+    expect(r.next.bestEstimated1RM).toBeCloseTo(estimate1RM(60, 12), 5);
+  });
+
+  it('leaves the lift untouched when only extra sets were logged', () => {
+    const before = lift({ consecutiveFailures: 1 });
+    const r = applyProgression(before, [manualSet(3, 60, true)], LINEAR);
+    expect(r.outcome).toBe('held');
+    expect(r.nextWeight).toBe(60);
+    // Neither a win nor a miss: the failure count must not move in either direction.
+    expect(r.next.consecutiveFailures).toBe(1);
+    expect(r.next.bestReps).toBe(3);
+  });
+
+  it('does not let an extra set claim a personal best weight', () => {
+    // A single heavy manual double is not a completed session at that weight.
+    const r = applyProgression(lift({ workingWeight: 100 }), [manualSet(2, 100, true)], LINEAR);
+    expect(r.next.bestWeight).toBe(0);
+    expect(r.next.bestEstimated1RM).toBeGreaterThan(0);
+  });
+
+  it('separates prescribed sets from added ones', () => {
+    const mixed = [...sets([5, 5]), manualSet(5, 60, true)];
+    expect(prescribedSets(mixed)).toHaveLength(2);
+    expect(isSessionSuccessful([manualSet(5, 60, true)])).toBe(false);
+  });
+
+  it('banks records straight from a lift with no prescription at all', () => {
+    const fresh = lift({ exerciseId: 'db-curl', workingWeight: 20 });
+    const banked = bankRecords(fresh, [manualSet(10, 22.5, true), manualSet(8, 22.5, true)]);
+    expect(banked.bestReps).toBe(10);
+    expect(banked.bestEstimated1RM).toBeCloseTo(estimate1RM(22.5, 10), 5);
+    // The working weight is the program's to set, not an ad-hoc set's.
+    expect(banked.workingWeight).toBe(20);
+  });
+
+  it('takes the best 1RM from the set that earned it, not the working weight', () => {
+    // A heavy manual single alongside the lighter prescribed work.
+    const r = applyProgression(lift(), [...sets([5, 5, 5, 5, 5]), manualSet(1, 90, true)], LINEAR);
+    expect(r.next.bestEstimated1RM).toBeCloseTo(estimate1RM(90, 1), 5);
   });
 });
 

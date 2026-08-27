@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { currentDay, initialState, reducer } from '../state';
+import { currentDay, EXTRA_DAY_ID, initialState, reducer } from '../state';
 import type { Action } from '../state';
+import { checkPromotion } from '../../engine/graduation';
 import type { AppState, Profile } from '../../types';
 
 const profile: Profile = {
@@ -153,6 +154,152 @@ describe('a lifter over several weeks', () => {
     s = perfectSession(s);
     expect(s.lifts['squat'].consecutiveFailures).toBe(0);
     expect(s.sessions[0].exercises.find((e) => e.exerciseId === 'squat')?.outcome).toBe('progressed');
+  });
+});
+
+describe('adding reps by hand', () => {
+  it('adds an extra set to a prescribed lift without letting it block progression', () => {
+    const before = onboarded();
+    let s = reducer(before, { type: 'startSession' });
+    const idx = s.active!.exercises.findIndex((e) => e.exerciseId === 'squat');
+    const prescribed = s.active!.exercises[idx].sets.length;
+
+    s = reducer(s, { type: 'addSet', exerciseIndex: idx });
+    expect(s.active!.exercises[idx].sets).toHaveLength(prescribed + 1);
+    expect(s.active!.exercises[idx].sets[prescribed].manual).toBe(true);
+
+    // Every prescribed set hit; the added set is a burnout set of two.
+    for (let j = 0; j < prescribed; j++) {
+      s = reducer(s, { type: 'toggleSet', exerciseIndex: idx, setIndex: j });
+    }
+    s = reducer(s, { type: 'setReps', exerciseIndex: idx, setIndex: prescribed, reps: 2 });
+    s = reducer(s, { type: 'finishSession', durationSec: 100 });
+
+    expect(s.lifts['squat'].workingWeight).toBe(before.lifts['squat'].workingWeight + 5);
+    expect(s.sessions[0].exercises.find((e) => e.exerciseId === 'squat')?.outcome).toBe('progressed');
+  });
+
+  it('removes an added set but refuses to remove a prescribed one', () => {
+    let s = reducer(onboarded(), { type: 'startSession' });
+    const prescribed = s.active!.exercises[0].sets.length;
+    s = reducer(s, { type: 'addSet', exerciseIndex: 0 });
+    s = reducer(s, { type: 'removeSet', exerciseIndex: 0, setIndex: prescribed });
+    expect(s.active!.exercises[0].sets).toHaveLength(prescribed);
+    s = reducer(s, { type: 'removeSet', exerciseIndex: 0, setIndex: 0 });
+    expect(s.active!.exercises[0].sets).toHaveLength(prescribed);
+  });
+
+  it('logs a lift the program never asked for, without moving anyone else', () => {
+    const before = onboarded();
+    let s = reducer(before, { type: 'startSession' });
+    s = reducer(s, { type: 'addExercise', exerciseId: 'db-curl', weight: 12.5, reps: 10, sets: 3 });
+    const idx = s.active!.exercises.findIndex((e) => e.exerciseId === 'db-curl');
+    expect(s.active!.exercises[idx].adhoc).toBe(true);
+    expect(s.active!.exercises[idx].sets.every((set) => set.manual)).toBe(true);
+
+    s.active!.exercises[idx].sets.forEach((_, j) => {
+      s = reducer(s, { type: 'toggleSet', exerciseIndex: idx, setIndex: j });
+    });
+    s = reducer(s, { type: 'finishSession', durationSec: 100 });
+
+    const logged = s.sessions[0].exercises.find((e) => e.exerciseId === 'db-curl');
+    expect(logged?.outcome).toBe('held');
+    expect(logged?.sets).toHaveLength(3);
+    // Recorded, but the curl was never prescribed, so there is no weight to move.
+    expect(s.lifts['db-curl'].bestReps).toBe(10);
+    expect(s.lifts['db-curl'].consecutiveFailures).toBe(0);
+    expect(s.lifts['squat'].workingWeight).toBe(before.lifts['squat'].workingWeight);
+  });
+
+  it('gives extra sets to a lift already on the card rather than listing it twice', () => {
+    let s = reducer(onboarded(), { type: 'startSession' });
+    const id = s.active!.exercises[0].exerciseId;
+    const prescribed = s.active!.exercises[0].sets.length;
+    const count = s.active!.exercises.length;
+    s = reducer(s, { type: 'addExercise', exerciseId: id, weight: 40, reps: 8, sets: 2 });
+    expect(s.active!.exercises).toHaveLength(count);
+    expect(s.active!.exercises[0].sets).toHaveLength(prescribed + 2);
+  });
+});
+
+describe('lifts logged outside the program', () => {
+  const extra = (state: AppState) =>
+    reducer(state, { type: 'logExtraLift', exerciseId: 'db-curl', weight: 12.5, reps: 10, sets: 3 });
+
+  it('records the work without touching the rotation', () => {
+    const before = onboarded();
+    const s = extra(before);
+    expect(s.sessions).toHaveLength(1);
+    expect(s.sessions[0].kind).toBe('extra');
+    expect(s.sessions[0].dayId).toBe(EXTRA_DAY_ID);
+    expect(s.sessions[0].exercises[0].sets).toHaveLength(3);
+    // The next session is still the one the program had queued up.
+    expect(s.dayCursor).toBe(before.dayCursor);
+    expect(currentDay(s)?.id).toBe('A');
+    expect(s.active).toBeNull();
+  });
+
+  it('banks a record but leaves the working weight to the program', () => {
+    const s = extra(onboarded());
+    expect(s.lifts['db-curl'].bestReps).toBe(10);
+    expect(s.lifts['db-curl'].bestEstimated1RM).toBeGreaterThan(0);
+    expect(s.lifts['db-curl'].consecutiveFailures).toBe(0);
+    expect(s.lifts['db-curl'].deloads).toBe(0);
+  });
+
+  it('collects a day of extra lifts into one entry in the log', () => {
+    const s = extra(extra(onboarded()));
+    expect(s.sessions).toHaveLength(1);
+    expect(s.sessions[0].exercises).toHaveLength(2);
+  });
+
+  it('does not count toward the program for graduation purposes', () => {
+    let s = onboarded();
+    for (let i = 0; i < 5; i++) s = extra(s);
+    // Five logged lifts, zero program sessions — the promotion engine must see none.
+    expect(s.sessions.filter((x) => x.kind !== 'extra')).toHaveLength(0);
+    expect(checkPromotion(s)).toBeNull();
+  });
+
+  it('logs a bodyweight movement without inventing a load for it', () => {
+    const s = reducer(onboarded(), {
+      type: 'logExtraLift',
+      exerciseId: 'plank',
+      weight: 40,
+      reps: 60,
+      sets: 2,
+    });
+    expect(s.sessions[0].exercises[0].weight).toBe(0);
+    expect(s.sessions[0].exercises[0].sets.every((set) => set.weight === 0)).toBe(true);
+  });
+});
+
+describe('correcting a logged session', () => {
+  it('fixes the record and leaves the already-decided weights alone', () => {
+    const s = perfectSession(onboarded());
+    const weightBefore = s.lifts['squat'].workingWeight;
+    const exerciseIndex = s.sessions[0].exercises.findIndex((e) => e.exerciseId === 'squat');
+    const fixed = reducer(s, {
+      type: 'editLoggedSet',
+      sessionId: s.sessions[0].id,
+      exerciseIndex,
+      setIndex: 0,
+      reps: 3,
+    });
+    expect(fixed.sessions[0].exercises[exerciseIndex].sets[0].reps).toBe(3);
+    expect(fixed.lifts['squat'].workingWeight).toBe(weightBefore);
+  });
+
+  it('ignores a correction aimed at a session that is gone', () => {
+    const s = perfectSession(onboarded());
+    const after = reducer(s, {
+      type: 'editLoggedSet',
+      sessionId: 'nope',
+      exerciseIndex: 0,
+      setIndex: 0,
+      reps: 1,
+    });
+    expect(after.sessions).toEqual(s.sessions);
   });
 });
 

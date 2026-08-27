@@ -106,6 +106,12 @@ export interface LoggedSet {
   reps: number;
   weight: number;
   completed: boolean;
+  /**
+   * Added by the lifter rather than prescribed by the program. Manual sets count toward
+   * records and volume, but they never decide whether a lift progresses — an extra set
+   * taken to failure must not turn a completed session into a miss.
+   */
+  manual?: boolean;
 }
 
 export interface LoggedExercise {
@@ -115,6 +121,8 @@ export interface LoggedExercise {
   /** Progression verdict, resolved when the session was finished. */
   outcome: 'progressed' | 'held' | 'deloaded' | 'skipped';
   nextWeight: number;
+  /** Added by the lifter, so the program prescribes nothing for it this session. */
+  adhoc?: boolean;
 }
 
 export interface Session {
@@ -126,6 +134,12 @@ export interface Session {
   durationSec: number;
   bodyweightKg: number;
   notes?: string;
+  /**
+   * `extra` marks lifts logged outside the rotation. They are real training and show up
+   * in history and volume, but they are not a program session: they do not advance the
+   * rotation, count toward the weekly target, or feed graduation.
+   */
+  kind?: 'extra';
 }
 
 export interface BodyweightEntry {
