@@ -187,6 +187,61 @@ export const PROGRAMS: Program[] = [
       },
     ],
   },
+  {
+    id: 'kagan-split',
+    name: 'Kağan Split',
+    tagline: 'Chest · Legs · Shoulders · Back — 4 days a week',
+    description:
+      'A custom four-day body-part split: chest and triceps, legs, shoulders, then back and biceps. Every lift runs on a rep range — work up to the top of the range, then add weight. Your week: Mon, Wed, Thu, Sat train; Tue, Fri, Sun are off.',
+    daysPerWeek: 4,
+    level: 3,
+    requires: ['barbell', 'dumbbell', 'cable', 'machine'],
+    graduatesTo: [],
+    days: [
+      {
+        id: 'chest',
+        name: 'Chest & Triceps',
+        slots: [
+          { exerciseId: 'bench', scheme: range(3, 8, 12) },
+          { exerciseId: 'incline-db-press', scheme: range(3, 8, 12) },
+          { exerciseId: 'pec-fly', scheme: range(3, 12, 15) },
+          { exerciseId: 'rope-pushdown', scheme: range(4, 12, 15) },
+          { exerciseId: 'bar-pushdown', scheme: range(4, 12, 15) },
+        ],
+      },
+      {
+        id: 'legs',
+        name: 'Legs',
+        slots: [
+          { exerciseId: 'leg-press', scheme: range(3, 8, 12) },
+          { exerciseId: 'hack-squat', scheme: range(3, 8, 12) },
+          { exerciseId: 'leg-extension', scheme: range(3, 8, 12) },
+          { exerciseId: 'leg-curl', scheme: range(3, 8, 12) },
+          { exerciseId: 'calf-raise', scheme: range(3, 20, 25) },
+        ],
+      },
+      {
+        id: 'shoulders',
+        name: 'Shoulders',
+        slots: [
+          { exerciseId: 'db-shoulder-press', scheme: range(4, 12, 15) },
+          { exerciseId: 'lateral-raise', scheme: range(4, 12, 15) },
+          { exerciseId: 'rear-delt-fly', scheme: range(4, 12, 15) },
+        ],
+      },
+      {
+        id: 'back',
+        name: 'Back & Biceps',
+        slots: [
+          { exerciseId: 'pull-up', scheme: range(3, 5, 8) },
+          { exerciseId: 'lat-pulldown', scheme: range(3, 8, 12) },
+          { exerciseId: 'seated-row', scheme: range(3, 8, 12) },
+          { exerciseId: 'hammer-curl', scheme: range(4, 8, 12) },
+          { exerciseId: 'barbell-curl', scheme: range(4, 8, 12) },
+        ],
+      },
+    ],
+  },
 ];
 
 export const PROGRAM_MAP: Record<string, Program> = Object.fromEntries(PROGRAMS.map((p) => [p.id, p]));
